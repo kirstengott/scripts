@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 
-## define program locations
+## define required program locations
 bedGraphToBigWig='/n/local/bin/bedGraphToBigWig'
 bedItemOverlapCount='/n/local/bin/bedItemOverlapCount'
 sort='/usr/bin/sort'
@@ -45,12 +45,6 @@ while getopts ":hb:d:c:" opt; do
 	    ;;
     esac
 done
-
-# Requiered Arguments
-#genome_name='/n/projects/ejr/blastdb/smed/SmedSxl_genome_v3.1.nt'
-#chromosome_file='/home/klg/bin/SmedSxl_genome_v3.1.scaffold_info.txt'
-#input_bam='/home/klg/projects/s2f2_tophat/v3_1/tophat_out/S2F2/accepted_hits.bam'
-
 
 
 bam_base=${input_bam%.bam}
