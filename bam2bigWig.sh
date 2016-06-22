@@ -8,11 +8,12 @@ sort='/usr/bin/sort'
 awk='/usr/bin/awk'
 
 
-usage="Usage: ./bam2bigWig -b <input_bamfile> -d <genome_database> -c <genome_chromosome_file>
+usage="Usage: ./bam2bigWig -b <input_bamfile> -d <genome_database> -c <genome_chromosome_file> -s
                 -h: this help message.
-                -b: the bam file to conver. [REQUIRED]
+                -b: the bam file to convert. [REQUIRED]
                 -d: the genome database. [REQUIRED]
-                -c: location of chromosome lengths file. [REQUIRED]"
+                -c: location of chromosome lengths file. [REQUIRED]
+                -s: flag to make bigWigs for the plus and minus strands"
 
 
 while getopts ":hb:d:c:s" opt; do
