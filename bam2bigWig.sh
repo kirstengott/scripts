@@ -90,7 +90,7 @@ if [[ $strand == "TRUE" ]]; then
 else
     echo 'Making bedgraph'
 
-    cat ${output_bed} | ${sort} -k1,1 | ${bedItemOverlapCount} ${genome_name} -chromSize=${chromosome_file} stdin | ${sort} -k1,1 -k2,2n | ${awk} '{OFS="\t"; print $1,$2,$3,"-"$4}' >${bam_base}.bedGraph
+    cat ${output_bed} | ${sort} -k1,1 | ${bedItemOverlapCount} ${genome_name} -chromSize=${chromosome_file} stdin | ${sort} -k1,1 -k2,2n >${bam_base}.bedGraph
 
     echo 'Making bigwig'
 
