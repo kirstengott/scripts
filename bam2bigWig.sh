@@ -99,13 +99,4 @@ else
 fi
     
 
-#cat ${output_bed} | ${sort} -k1,1 | ${bedItemOverlapCount} ${genome_name} -chromSize=${chromosome_file} stdin | ${sort} -k1,1 -k2,2n >${bam_base}.bedGraph
-
-
-#${bedGraphToBigWig} ${bam_base}.bedGraph ${chromosome_file} ${bam_base}.bw
-
-
-
-
-
 
