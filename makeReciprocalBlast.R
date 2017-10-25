@@ -28,7 +28,7 @@ make_parse <- function(x, y){
   out   <- paste0(args[2], "/", x_mod, "_", y_mod, ".", blast_type, "_parsed")
   blast_reference <- paste0(args[2], "/", x_mod, "_", y_mod, ".", blast_type)
   blast_invert  <- paste0(args[2], "/", y_mod, "_", x_mod, ".", blast_type)
-  paste('parseReciprocalBlast.R', blast_reference, blast_invert, sep = " ")
+  paste('parseReciprocalBlast.R', blast_reference, blast_invert, out, sep = " ")
 }
 
 fas <- list.files(args[1], full.names = TRUE, pattern = 'fas$')
