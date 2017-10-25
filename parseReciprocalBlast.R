@@ -14,9 +14,6 @@ library(dplyr)
 library(tidyr)
 
 
-args <- c('test/saccharomyces_cerevisiae_yarrowia_lipolytica.blastp', 
-          'test/yarrowia_lipolytica_saccharomyces_cerevisiae.blastp')
-
 reference <- data.table::fread(args[1], data.table = FALSE)
 invert    <- data.table::fread(args[2], data.table = FALSE)
 
