@@ -14,6 +14,9 @@ library(dplyr)
 library(tidyr)
 
 
+args <- c('test/saccharomyces_cerevisiae_yarrowia_lipolytica.blastp', 
+          'test/yarrowia_lipolytica_saccharomyces_cerevisiae.blastp')
+
 reference <- data.table::fread(args[1], data.table = FALSE)
 invert    <- data.table::fread(args[2], data.table = FALSE)
 
@@ -39,15 +42,14 @@ colnames(invert)    <- paste0('invert_', cols)
 referenceRank <- reference %>% 
   filter(reference_e_val <= 1e-3) %>% 
   group_by(reference_query) %>% 
-  distinct(reference_query, reference_subject) %>%
   mutate(rank1 = floor(rank(-reference_bit_score))) %>%
-  ungroup() %>% filter(rank1 == 1) %>% 
+  ungroup() %>% 
+  filter(rank1 == 1) %>% 
   rename('common_subject'= reference_subject)
 
 invertRank <- invert %>% 
   filter(invert_e_val <= 1e-3) %>% 
   group_by(invert_query) %>% 
-  distinct(invert_query, invert_subject) %>%
   mutate(rank2 = floor(rank(-invert_bit_score))) %>%
   ungroup()%>% 
   rename('common_subject' = invert_query, 
@@ -62,4 +64,9 @@ rankfinal <- ranker %>% select(reference_query,
 
 
 
-write.table(na.omit(rankfinal), file = args[3], quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+write.table(na.omit(rankfinal), 
+            file = args[3], 
+            quote = FALSE, 
+            sep = "\t", 
+            row.names = FALSE, 
+            col.names = FALSE)
