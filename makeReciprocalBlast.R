@@ -51,7 +51,7 @@ parse_commands <- unlist(
 blast_parse_commands <- unlist(
   lapply(fas, function(x){
     fa_list <- fas[which(!fas == x)]
-    make_blast(x, fa_list)
+    make_parse(x, fa_list)
   }))
 
 
