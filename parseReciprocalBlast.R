@@ -1,4 +1,4 @@
-#!/bin/env Rscript
+#!/usr/bin/env Rscript
 
 args <- commandArgs(TRUE)
 if (length(args) == 0L || any(c('-h', '--help') %in% args)) {
