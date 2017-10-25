@@ -10,7 +10,7 @@ if (length(args) == 0L || any(c('-h', '--help') %in% args)) {
 }
 library(tools)
 
-args <- c('../data/300_genomes_proteins/', 'recips', 'blastp')  
+#args <- c('../data/300_genomes_proteins/', 'recips', 'blastp')  
 
 blast_type <- args[3]
 
