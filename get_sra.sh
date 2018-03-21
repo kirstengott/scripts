@@ -14,7 +14,7 @@ while getopts ":hf:" opt; do
 	    ;;
 	f)
 	    file="$OPTARG" >&2
-	    echo "Bam File: $OPTARG" >&2
+	    echo "SraRunInfo.csv file: $OPTARG" >&2
 	    ;;
 	\?)
 	    echo "Invalid option: -$OPTARG" >&2
@@ -33,6 +33,6 @@ ids=`cut -d , -f 1 $file | grep -v Run`
 
 for id in $ids
 do
-    prefetch $id
-    fastq-dump --split-3 --gzip $id
+    prefetch $id #prefetch the SRA id
+    fastq-dump --split-3 --gzip $id #dump the fastqs for the fetched SRA
 done
