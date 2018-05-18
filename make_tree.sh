@@ -2,7 +2,7 @@
 
 usage="Usage: ./make_tree.sh -f <align.faa>
                 -h: this help message.
-                -f:  folder containing sequence files to align [REQUIRED]
+                -f:  folder containing files with amino acid sequences of orthologous genes [REQUIRED]
                 -p:  number of threads to use [REQUIRED]
                 "
 
