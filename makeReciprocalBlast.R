@@ -13,7 +13,7 @@ if (length(args) == 0L || any(c('-h', '--help') %in% args)) {
 }
 library(tools)
 
-args <- c('db', 'blastn' ,'blastn', 'fasta')
+##args <- c('db', 'blastn' ,'blastn', 'fasta', "1")
 
 blast_type <- args[3]
 
