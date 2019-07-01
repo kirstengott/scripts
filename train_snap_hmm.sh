@@ -41,4 +41,5 @@ fathom genome.ann genome.dna -categorize 1000 > categorize.log 2>&1
 fathom uni.ann uni.dna -export 1000 -plus > uni-plus.log 2>&1
 mkdir params; cd params
 forge ../export.ann ../export.dna > ../forge.log 2>&1
+cd ..
 hmm-assembler.pl $pref params >${pref}.hmm
