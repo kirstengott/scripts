@@ -2,9 +2,10 @@
 
 args <- commandArgs(TRUE)
 if (length(args) == 0L || any(c('-h', '--help') %in% args)) {
-    message('usage: path/to/parseBlast.R input output
+    message('usage: path/to/parseBlast.R input output pid
     input             Blast output.
     output            Name of outfile
+    pid		      percent identity to filter
     -h, --help        to print help messages')
     q('no')
 }
@@ -18,12 +19,17 @@ colnames(blast) <- c("query", "subject", "perc_id", "align_len", "mismatches", "
 
 options(dplyr.width = Inf)
 
+pid <- args[3]
 
 blast.final <- blast %>% filter(e_val< 0.001) %>% 
     group_by(query) %>% 
         filter(rank(-bit_score, ties.method="first") == 1) %>%
             ungroup()
 
+if (exists('pid')) {
+   blast.final <- filter(blast.final, perc_id >= pid)
+
+}	       	  
 
 if (nrow(blast.final) == 0) {
     message("No evalues < 0.001.")

@@ -43,15 +43,19 @@ gff3_merge -d *master_datastore_index.log -n ## pull out the evidence
 fasta_merge -d *master_datastore_index.log; ## pull out the fasta files
 
 
-if [ ! -d "$o" ]; then
-    mkdir $o
+
+
+
+if [ "$o" = "./" ]; then
+    echo 'Not creating output folder, output here'
+else
+    if [ ! -d "$o" ]; then
+	mkdir $o
+    fi
+    ## copy the files to an output directory
+    cp *all.maker.proteins.fasta $o
+    cp *all.maker.transcripts.fasta $o
+    cp *all.gff $o
+    cp *.genemodels.gff $o
+
 fi
-
-
-
-## copy the files to an output directory
-cp *all.maker.proteins.fasta $o
-cp *all.maker.transcripts.fasta $o
-cp *all.gff $o
-cp *.genemodels.gff $o
-
