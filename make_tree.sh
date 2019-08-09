@@ -4,7 +4,7 @@
 
 mafft="/usr/bin/mafft"
 raxml="/usr/bin/raxmlHPC"
-astral="~/bin/astral.5.6.1.jar"
+catfasta="/home/kgotting/scripts/catfasta2phyml.pl"
 aln_convert="/home/kgotting/scripts/aln_convert.pl"
 
 usage="Usage: ./make_tree.sh -f <align.faa>
@@ -14,7 +14,7 @@ usage="Usage: ./make_tree.sh -f <align.faa>
                 "
 
 
-while getopts ":hf:p:" opt; do
+while getopts ":hf:p:a" opt; do
     case $opt in
 	h)
 	    echo "$usage" >&2
@@ -27,6 +27,9 @@ while getopts ":hf:p:" opt; do
 	p)
 	    threads="$OPTARG" >&2
 	    echo "Number of threads: $OPTARG" >&2
+	    ;;
+	a)
+	    align=1
 	    ;;
 	\?)
 	    echo "Invalid option: -$OPTARG" >&2
@@ -52,94 +55,36 @@ if [ -z "$threads" ]; then
 fi
 
 
-
-## setting up directories
-mkdir tmp
-mkdir astral
-mkdir astral/trees
-mkdir astral/bootstraps
-
-
 files=`ls $database`
 
+if [ -z "$align"]
+then
+    for file in $files
+    do
+	mkdir tmp
+	## create basename for file creation
+	file_strip=`basename $file`
+	filename=${file_strip%.*}
+	echo "Running mafft alignment: ${mafft} ${database}/$file >tmp/${filename}.afa "
+	${mafft} ${database}/$file >tmp/${filename}.afa
 
+    done
 
-for file in $files
-do
+    ## remove any alignments that are all matches
+    grep - -L tmp/* | parallel -j 3 rm {}
 
-## create basename for file creation
-file_strip=`basename $file`
-filename=${file_strip%.*}
+    cd tmp
 
-#echo $file_strip
+    ## cat into one fasta and convert it into phylip format
+    ${catfasta} -f *afa >all.afa
+    ${aln_convert} fasta phylip < all.afa > all.phylip
 
-echo "Running mafft alignment: ${mafft} ${database}/$file >tmp/${filename}.afa "
+    cd ..
 
-${mafft} ${database}/$file >tmp/${filename}.afa
+    else:
+    echo 'skipping maaft alignment'
+fi
 
-done
-
-
-
-
-## count the number of mafft alignments that are total matches
-## grep - -L tmp/* | wc -l
-
-## remove any alignments that are all matches
-grep - -L tmp/* | parallel -j 3 rm {}
-
-cd tmp
-
-for file in $files
-do
-
-## create basename for file creation
-file_strip=`basename $file`
-filename=${file_strip%.*}
-
-## convert mafft alignments to phylip format
-
-echo "Converting to maaft alignments to phylip format: aln_convert.pl fasta phylip < tmp/${filename}.afa > tmp/${filename}.phylip "
-${aln_convert} fasta phylip < ${filename}.afa > ${filename}.phylip
-
-## run raxml
-
-
-echo "Running raxml part 1: ${raxml} -m GTRGAMMA -n ${filename} -s ${filename}.phylip -f a -x 897543 -N 100 -p 345232 -T ${threads} "
-
-${raxml} -m GTRGAMMA -n ${filename} -s ${filename}.phylip -f a -x 897543 -N 100 -p 345232 -T ${threads}
-
-
-echo "Running raxml part 2: ${raxml} -f b -m GTRGAMMA -z RAxML_bootstrap.${filename} -t RAxML_bestTree.${filename} -n ${filename}.BS_TREE -T ${threads} "
-${raxml} -f b -m GTRGAMMA -z RAxML_bootstrap.${filename} -t RAxML_bestTree.${filename} -n ${filename}.BS_TREE -T ${threads}
-
-done
-
-cd ..
-
-echo "Setting up astral file hierarchy "
-
-cd astral/bootstraps
-ln -s ../../tmp/RAxML_bootstrap.* ./
-
-cd ../trees
-ln -s ../../tmp/RAxML_bipartitions.*BS_TREE ./
-
-
-## return to the astral root directory
-cd ..
-
-echo "Initializing astral run files "
-
-ls bootstraps/* >bs_files
-cat trees/* >allgenes.tre
-
-
-
-num_genes=`ls trees | wc -l`
-
-echo "Running astral: java -jar ${astral} -i allgenes.tre -b bs_files -o ${num_genes}_genes.tre 2>${num_genes}_genes.log"
-java -jar ${astral} -i allgenes.tre -b bs_files -o ${num_genes}_genes.tre 2>${num_genes}_genes.log
-tail -n 1 ${num_genes}_genes.tre >bootstrapped_tree_final.tre
-
-echo 'Final consensus tree found at astral/bootstrapped_tree_final.tre'
+## I want to keep all of the leaves, even if everything matches.
+${raxml} -m GTRGAMMA -n all -s tmp/all.phylip -f a -x 897543 -N autoMRE -p 345232 -T ${threads}
+${raxml} -f b -m GTRGAMMA -z RAxML_bootstrap.all -t  RAxML_bestTree.all -n all.BS_TREE -T ${threads}
