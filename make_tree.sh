@@ -10,11 +10,13 @@ aln_convert="/home/kgotting/scripts/aln_convert.pl"
 usage="Usage: ./make_tree.sh -f <align.faa>
                 -h: this help message.
                 -f:  folder containing sequence files to align [REQUIRED]
-                -p:  number of threads to use [REQUIRED]
+                -c:  number of threads to use [REQUIRED]
+                -a: skip mafft alignment step
+                -p: input is protein sequences
                 "
 
 
-while getopts ":hf:p:a" opt; do
+while getopts ":hf:pc:a" opt; do
     case $opt in
 	h)
 	    echo "$usage" >&2
@@ -24,12 +26,15 @@ while getopts ":hf:p:a" opt; do
 	    database="$OPTARG" >&2
 	    echo "Database: $OPTARG" >&2
 	    ;;
-	p)
+	c)
 	    threads="$OPTARG" >&2
 	    echo "Number of threads: $OPTARG" >&2
 	    ;;
 	a)
 	    align=1
+	    ;;
+	p)
+	    protein=1
 	    ;;
 	\?)
 	    echo "Invalid option: -$OPTARG" >&2
@@ -57,11 +62,12 @@ fi
 
 files=`ls $database`
 
-if [ -z "$align"]
+mkdir tmp
+
+if [ -z "$align" ]
 then
     for file in $files
     do
-	mkdir tmp
 	## create basename for file creation
 	file_strip=`basename $file`
 	filename=${file_strip%.*}
@@ -81,10 +87,20 @@ then
 
     cd ..
 
-    else:
+else
     echo 'skipping maaft alignment'
 fi
 
-## I want to keep all of the leaves, even if everything matches.
-${raxml} -m GTRGAMMA -n all -s tmp/all.phylip -f a -x 897543 -N autoMRE -p 345232 -T ${threads}
-${raxml} -f b -m GTRGAMMA -z RAxML_bootstrap.all -t  RAxML_bestTree.all -n all.BS_TREE -T ${threads}
+if [ -z "$protein" ]; then
+    echo 'Running RAXML on nucleotides'
+    ## I want to keep all of the leaves, even if everything matches.
+    ${raxml} -m GTRGAMMA -n all -s tmp/all.phylip -f a -x 897543 -N autoMRE -p 345232 -T ${threads}
+    ${raxml} -f b -m GTRGAMMA -z RAxML_bootstrap.all -t  RAxML_bestTree.all -n all.BS_TREE -T ${threads}
+else
+    ## proteins
+    echo 'Running RAXML on proteins'
+    ## -f a rapid Bootstrap analysis and search for best­scoring ML tree in one program run
+    ${raxml} -m PROTGAMMAAUTO -n all -s tmp/all.phylip -f a -x 897543 -N autoMRE -p 345232 -T ${threads}
+    ${raxml} -f b -m PROTGAMMAAUTO -z RAxML_bootstrap.all -t  RAxML_bestTree.all -n all.BS_TREE -T ${threads}
+
+fi
