@@ -28,7 +28,9 @@ def fetch_fasta(fasta_reference, sequences):
     fh.close()
 
 def write_treedb_diction2fasta(matches_dictionary, fasta_dir,  output_directory, keep_sequences = False):
-    os.mkdir(output_directory)
+    if not os.path.exists(output_directory):
+        os.mkdir(output_directory)
+        print('Made directory:', output_directory)
     id_map = open('seqid_map.txt', 'a')
     ind = 1
     for i in matches_dictionary.keys():
@@ -79,6 +81,7 @@ def main(argv):
     total_db_length = 1
     for d in dirs:
         if 'run_' in d:
+            print(d)
             total_db_length += 1
             f = d[4:] ## subset the file name to just the GCA accession to reference the source fasta file with
             b_file = input_dir + "/" + d +"/full_table_" + f + ".tsv"
