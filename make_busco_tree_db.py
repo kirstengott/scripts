@@ -31,6 +31,8 @@ def write_treedb_diction2fasta(matches_dictionary, fasta_dir,  output_directory,
     if not os.path.exists(output_directory):
         os.mkdir(output_directory)
         print('Made directory:', output_directory)
+    if os.path.exists('seqid_map.txt'):
+        os.remove('seqid_map.txt')
     id_map = open('seqid_map.txt', 'a')
     ind = 1
     for i in matches_dictionary.keys():

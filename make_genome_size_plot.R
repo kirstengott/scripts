@@ -43,6 +43,9 @@ library(tidyverse, verbose = FALSE, quietly = TRUE)
 
 #args <- c('jellyfish/new_output/PE1_31mer.histo', 'test', 'pe3')
 
+
+args <- c("1054_histo_orig")
+
 x <- read_delim(args[1], col_names = c('Coverage', 'Nmers'), delim = ' ') %>%
                     mutate(name = sub(".histo", "", basename(args[1])))
 
