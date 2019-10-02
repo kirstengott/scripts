@@ -7,7 +7,9 @@ theme_kirsten <- function(rot = TRUE, presentation = FALSE, angle = 45, text_siz
     my_theme <- my_theme + theme(axis.text.x = element_text(angle = angle, hjust = 1))
   }
   if(presentation == TRUE){
-    my_theme <- my_theme + theme(text = element_text(size = 24))
+    my_theme <- my_theme + theme(text = element_text(size = 24),
+                                 axis.text.x = element_text(size = 15),
+                                 axis.text.y = element_text(size = 15))
   }
   theme_bw(base_size = text_size) + my_theme
 }
