@@ -79,28 +79,33 @@ then
     ## remove any alignments that are all matches
     grep - -L tmp/* | parallel -j 3 rm {}
 
-    cd tmp
-
-    ## cat into one fasta and convert it into phylip format
-    ${catfasta} -f *afa >all.afa
-    ${aln_convert} fasta phylip < all.afa > all.phylip
-
-    cd ..
 
 else
     echo 'skipping maaft alignment'
 fi
 
+
+
+cd tmp
+
+## cat into one fasta and convert it into phylip format
+${catfasta} -f *afa >../all.afa
+cd ..
+
+${aln_convert} fasta phylip < all.afa > all.phylip
+
+
+
 if [ -z "$protein" ]; then
     echo 'Running RAXML on nucleotides'
     ## I want to keep all of the leaves, even if everything matches.
-    ${raxml} -m GTRGAMMA -n all -s tmp/all.phylip -f a -x 897543 -N autoMRE -p 345232 -T ${threads}
+    ${raxml} -m GTRGAMMA -n all -s all.phylip -f a -x 897543 -N autoMRE -p 345232 -T ${threads}
     ${raxml} -f b -m GTRGAMMA -z RAxML_bootstrap.all -t  RAxML_bestTree.all -n all.BS_TREE -T ${threads}
 else
     ## proteins
     echo 'Running RAXML on proteins'
     ## -f a rapid Bootstrap analysis and search for best­scoring ML tree in one program run
-    ${raxml} -m PROTGAMMAAUTO -n all -s tmp/all.phylip -f a -x 897543 -N autoMRE -p 345232 -T ${threads}
+    ${raxml} -m PROTGAMMAAUTO -n all -s all.phylip -f a -x 897543 -N autoMRE -p 345232 -T ${threads}
     ${raxml} -f b -m PROTGAMMAAUTO -z RAxML_bootstrap.all -t  RAxML_bestTree.all -n all.BS_TREE -T ${threads}
 
 fi
