@@ -3,10 +3,13 @@
 
 usage="Usage: ./get_sra.sh -f <SraRunInfo.csv>
                 -h: this help message.
-                -f: SraRunInfo.csv [REQUIRED]"
+                -f: SraRunInfo.csv [REQUIRED]
+                -d: outdir [required]
+
+"
 
 
-while getopts ":hf:" opt; do
+while getopts ":hf:d:" opt; do
     case $opt in
 	h)
 	    echo "$usage" >&2
@@ -14,8 +17,13 @@ while getopts ":hf:" opt; do
 	    ;;
 	f)
 	    file="$OPTARG" >&2
-	    echo "SraRunInfo.csv file: $OPTARG" >&2
+	    echo "SRR accession file: $OPTARG" >&2
 	    ;;
+	 d)
+	    dir="$OPTARG" >&2
+	    echo "SRR accession file: $OPTARG" >&2
+	    ;;
+	
 	\?)
 	    echo "Invalid option: -$OPTARG" >&2
 	    echo "$usage" >&2
@@ -29,10 +37,10 @@ while getopts ":hf:" opt; do
     esac
 done
 
-ids=`cut -d , -f 1 $file | grep -v Run`
+ids=`cat $file`
 
 for id in $ids
 do
     prefetch $id #prefetch the SRA id
-    fastq-dump --split-3 --gzip $id #dump the fastqs for the fetched SRA
+    fastq-dump --outdir $dir --gzip --skip-technical --readids --read-filter pass --dumpbase --split-3 --clip $id #dump the fastqs for the fetched SRA
 done

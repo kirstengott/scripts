@@ -1,4 +1,4 @@
-#!/Users/kirstengotting/miniconda3/bin/python
+#!/usr/bin/env python
 
 from BCBio import GFF
 from Bio import SeqIO
