@@ -66,11 +66,10 @@ fi
 if [ -z "$fastq2" ]
 then
     bwa mem $fasta $fastq1 -t $threads | samtools view -b -@ $threads -o $out.bam
-    rm $out.sam
+    #samtools sort -o ${out}.sorted.bam -T ${out}.tmp ${out}.bam
 else
-    bwa mem $fasta $fastq1 $fastq2 -t $threads >$out.sam
-    samtools view -b -@ $threads $out.sam >$out.bam
-    rm $out.sam
+    bwa mem $fasta $fastq1 $fastq2 -t $threads | samtools view -b -@ $threads -o $out.bam
+    #samtools sort -o ${out}.sorted.bam -T ${out}.tmp ${out}.bam
     fi
 
 
