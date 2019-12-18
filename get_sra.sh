@@ -41,6 +41,8 @@ ids=`cat $file`
 
 for id in $ids
 do
-    prefetch $id #prefetch the SRA id
+    base=`echo $id | sed -e`
+    wget ftp://ftp-trace.ncbi.nih.gov/sra/sra-instant/reads/ByRun/sra/SRR/SRR###/SRR#######/SRR#######.sra
+    #prefetch $id #prefetch the SRA id
     fastq-dump --outdir $dir --gzip --skip-technical --readids --read-filter pass --dumpbase --split-3 --clip $id #dump the fastqs for the fetched SRA
 done

@@ -42,11 +42,13 @@ def main(argv):
          if os.path.abspath(out_dir) == os.path.abspath(os.getcwd()):
              out_f_mated = "filtered_" + os.path.basename(bam_file)
              out_base = re.sub('.bam', '', out_f_mated)          ## output fastqfile
+             contaminant_reads = "contaminant_" + os.path.basename(bam_file)
          else:
              out_f_mated   = out_dir + "/" + os.path.basename(bam_file)          ## output bam file
              out_base = re.sub('.bam', '', os.path.basename(bam_file))          ## output fastqfile
-         
+             contaminant_reads = "contaminant_" + os.path.basename(bam_file)
          ## open output files
+         contam_reads = pysam.AlignmentFile(contaminant_reads, 'wb', template = bamfile)
          mated_unaligned_read = pysam.AlignmentFile(out_f_mated, "wb", template = bamfile)
          # fastq_r1_o = open(fastq_r1, 'w')
          # fastq_r2_o = open(fastq_r2, 'w')
@@ -60,6 +62,7 @@ def main(argv):
                       ## logic to test if the read or its paired end map to a contaminant reference id
              if sys.argv[4] == 's':
                           if read.reference_name in reference_ids:
+                                       contam_reads.write(read)
                                        continue ## if either read maps to contaminant, continue to the next iteration
                           else:
                                        mated_unaligned_read.write(read) ## otherwise write the pairs out
@@ -68,11 +71,13 @@ def main(argv):
 
              else:
                           if read.reference_name in reference_ids or read.next_reference_name in reference_ids:
+                                       contam_reads.write(read)
                                        continue ## if either read maps to contaminant, continue to the next iteration
                           else:
                                        mated_unaligned_read.write(read) ## otherwise write the pairs out
          mated_unaligned_read.close()
          bamfile.close()
+         contam_reads.close()
 
          if sys.argv[4] == 's':
                       fastq_out = out_dir + "/" + out_base + ".fastq"
