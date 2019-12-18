@@ -2,7 +2,7 @@
 
 import pysam
 import sys
-
+import os
 
 
 def main(argv):
