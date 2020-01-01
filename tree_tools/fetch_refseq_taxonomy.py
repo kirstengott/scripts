@@ -6,9 +6,8 @@ import os
 import shutil
 from gbk2faa import gbk2faa
 import re
+#from pathlib import Path
 
-ncbi = 'ncbi_metadata.txt'
-genbank = 'genbank_metadata.txt'
 
 ## make this stat the file to see when it was pulled down
 # if os.path.exists('~/refseq'):
@@ -17,16 +16,12 @@ genbank = 'genbank_metadata.txt'
 
     
 #os.system('ncbi-genome-download -F protein-fasta -l all -p 90 -m ncbi_metatdata.txt -v fungi')
-#os.system('ncbi-genome-download -s genbank -F genbank -l all -p 90 -m genbank_metatdata.txt -v fungi')
+#os.system('ncbi-genome-download -s genbank -F genbank,protein-fasta -l all -p 90 -m genbank_metatdata.txt -v fungi')
 
 
 
-taxa_pull_refseq = ['hypocreales', 'Aspergillus', 'Saccharomyces'] ## only pull representatives for outgroups to hypocreales
-taxa_pull_genbank = ['hypocreales']
 
 
-
-output_directory = 'hypocreales_tree'
 
 def check_gbk_faa(gbk):
     ## if the genbank file has CDS sequences, this function pulls
@@ -38,13 +33,13 @@ def check_gbk_faa(gbk):
     gbk_faa = re.sub('gbff', 'faa', gbk_r)
     try:
         gbk2faa(gbk_filename = gbk_r, faa_filename = gbk_faa)
-        return(gbk_faa)
     except:
+        print('no proteins in file')
+    if os.stat(gbk_faa).st_size == 0:
         return(False)
-    # if os.stat(gbk_faa).st_size == 0:
-    #     return(False)
-    # else:
-    #     return(gbk_faa)
+        os.remove(gbk_faa)
+    else:
+        return(gbk_faa)
 
 def get_taxonomy(ncbi, taxa_pull, output_directory):
     taxa_pull = [x.lower() for x in taxa_pull]
@@ -64,6 +59,7 @@ def get_taxonomy(ncbi, taxa_pull, output_directory):
             genome_info = dict(zip(keep, genome_items))
 
             taxid = genome_info['taxid']
+            print(genome_info['organism_name'])
             command = 'efetch -db taxonomy -id '+ taxid +' -format xml | xtract -pattern Taxon -block "*/Taxon" -tab "\t" -element ScientificName'
             out = check_output(command, shell = True)
             taxonomy = out.decode("utf-8").strip().split()
@@ -84,11 +80,19 @@ def get_taxonomy(ncbi, taxa_pull, output_directory):
 
                 elif genome_info['local_filename'].endswith('gbff.gz'):
                     ## what to do if the file is from genbank
-                    local_proteins = check_gbk_faa(genome_info['local_filename'])
-                    if local_proteins:
-                        outfile_name = genome_info['assembly_accession'] + ".faa"
+                    direct = os.path.dirname(genome_info['local_filename'])
+                    proteins_annotated = [x for x in os.listdir(direct) if "_protein.faa.gz" in x]
+                    if len(proteins_annotated) == 0:
+                        local_proteins = check_gbk_faa(genome_info['local_filename'])
+                        if local_proteins:
+                            outfile_name = genome_info['assembly_accession'] + ".faa"
+                            print(outfile_name)
+                            shutil.copyfile(local_proteins, os.path.join(output_directory, outfile_name))
+                    else:
+                        proteins_annotated = proteins_annotated[0]
+                        outfile_name = genome_info['assembly_accession'] + ".faa.gz"
                         print(outfile_name)
-                        shutil.copyfile(local_proteins, os.path.join(output_directory, outfile_name))
+                        shutil.copyfile(os.path.join(direct, proteins_annotated), os.path.join(output_directory, outfile_name))
                     
                 genome_info['local_filename'] = outfile_name
                 out = "{},{}\n".format(",".join([genome_info[x] for x in keep]), ";".join(taxonomy))
@@ -98,7 +102,24 @@ def get_taxonomy(ncbi, taxa_pull, output_directory):
     outfile.close()
     ncbi_f.close()
 
+
+def usage():
+    sys.stderr.write("Usage: %s <output_dir> <metadata_file>\n" % os.path.basename(sys.argv[0]))
+    sys.exit(1)
     
-#get_taxonomy(ncbi = ncbi, taxa_pull = taxa_pull_refseq, output_directory = output_directory)
-get_taxonomy(ncbi = genbank, taxa_pull = taxa_pull_genbank, output_directory = output_directory)        
-#efetch -db taxonomy -id 4754 -format xml | xtract -pattern Taxon -block "*/Taxon" -tab "\t" -element ScientificName
+def main(argv):
+    if len(argv) != 2:
+        usage()
+    elif "-h" in sys.argv[1]:
+        usage()
+    output_directory = sys.argv[1]
+    metadata = sys.argv[2]
+    #ncbi    = 'ncbi_metadata.txt'
+    #genbank = 'genbank_metadata.txt'
+    taxa_pull_refseq = ['hypocreales', 'Aspergillus', 'Saccharomyces'] ## only pull representatives for outgroups to hypocreales
+    taxa_pull_genbank = ['hypocreales']
+    #get_taxonomy(ncbi = ncbi, taxa_pull = taxa_pull_refseq, output_directory = output_directory)
+    get_taxonomy(ncbi = metadata, taxa_pull = taxa_pull_genbank, output_directory = output_directory)
+    
+if __name__ == "__main__":
+    main(sys.argv[1:])
