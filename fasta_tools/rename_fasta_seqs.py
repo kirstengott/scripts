@@ -7,11 +7,17 @@ import os
 
 
 
-def rename_fasta_seqs(fasta):
+def rename_fasta_seqs(fasta, fasta_out):
+    '''Renames of fasta file with 'seqN' where N is a sequential number
+       and writes out a file with extenstion '_id_map.txt' with mappings
+       to the original names fasta sequence names.
+       fasta: path to the fasta file
+       fasta_out: path to the output fasta file
+    '''
     fh = pysam.FastxFile(fasta)
-    fa_out     = open(sys.argv[2], 'w')
+    fa_out     = open(fasta_out, 'w')
     fasta_base = os.path.basename(fasta)
-    fa_out_dir = os.path.dirname(sys.argv[2])
+    fa_out_dir = os.path.dirname(fasta_out)
     id_map     = fasta_base.split(".")[:-1]
     if len(id_map) > 1:
         id_map = ".".join(id_map)
@@ -32,6 +38,7 @@ def rename_fasta_seqs(fasta):
     fa_out.close()
     fh.close()
 
+
     
 
 def main(argv):
@@ -39,7 +46,9 @@ def main(argv):
         sys.stderr.write("Usage: %s <fastafile> <fastaoutfile>\n" % os.path.basename(sys.argv[0]))
         sys.exit(1)
     fasta = sys.argv[1]
-    rename_fasta_seqs(fasta)
+    fasta_out = sys.argv[2]
+    rename_fasta_seqs(fasta = fasta, fasta_out = fasta_out)
+
 
 
 
