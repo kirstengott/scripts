@@ -72,11 +72,24 @@ def run_mafft(fasta, threads, recompute):
     return(output_file)
 
 def run_raxml(model, phylip, threads):
+    ''' Runs RaXML using the model, phylip file, and number of threads provided.
+    predefined RaXML options used: 
+    command1: 
+        -f a : rapid Bootstrap analysis and search for best­scoring ML tree in one program run
+        -x : Specify an integer number (random seed) and turn on rapid bootstrapping 
+             CAUTION:   unlike   in   previous   versions   of   RAxML   will   conduct   rapid   BS  
+             replicates under the model of rate heterogeneity you specified via ­m and   
+             not by default under CAT 
+
+    command2:
+        -f b : draw bipartition information on a tree provided with ­t (typically the bestknown ML tree) 
+               based on multiple trees (e.g., from a bootstrap) in a file specified by ­z
+    '''
     if not os.path.exists('raxml_trees'):
         os.mkdir('raxml_trees')
     output_dir = os.path.join(os.getcwd(), 'raxml_trees')
     name = re.sub('.phylip', '', os.path.basename(phylip))
-    command1 = "raxmlHPC -w {output} -m PROTGAMMAI{model} -n {name} -s {phylip} -f a -x 897543 -N autoMRE -p 345232 -T {threads} > {output}/{name}_stdout_raxml1.txt".format(model = model, name = name, phylip = phylip, threads = threads, output = output_dir)
+    command1 = "raxmlHPC -w {output} -m PROTGAMMAI{model} -n {name} -s {phylip} -f a -x 897543 -p 345232 -N autMRE -T {threads} > {output}/{name}_stdout_raxml1.txt".format(model = model, name = name, phylip = phylip, threads = threads, output = output_dir)
     command2 = "raxmlHPC -w {output} -m PROTGAMMAI{model} -f b -z {output}/RAxML_bootstrap.{name} -t {output}/RAxML_bestTree.{name} -n {name}.BS_tree -T {threads} > {output}/{name}_stdout_raxml2.txt".format(model = model, name = name, threads = threads, output = output_dir)
     print('Running:', command1)
     p = subprocess.Popen(command1, shell = True)
