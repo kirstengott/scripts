@@ -14,7 +14,7 @@ from itertools import combinations
 
 
 prottest_home   = "/home/gotting/src/prottest-3.4.2"
-jmodeltest_home = "/home/gotting/src/jmodeltest-2.1.10"
+jmodeltest_home = "/home/gotting/src/jmodeltest-2.1.10/jModelTest.jar"
 
 ## define a dictionary that converts prottest output into raxml matrix models IDs
 prottest_raxml = {"JTT" : 'JTT',
@@ -33,6 +33,14 @@ prottest_raxml = {"JTT" : 'JTT',
                   'HIVw' : 'HIVW',
                   'FLU' : 'FLU'
                   }
+
+jmodeltest_phyml = {"JC" :"JC69",
+                    "F81": 'F81',
+                    "HKY": 'HKY85',
+                    'K80' : 'K80',
+                    'F81' : 'F81',
+                    'TrNef' : 'TN93',
+                    'GTR' : 'GTR'}
 
 stop_codons = ['TAG', 'TAA', 'TGA',
                'tag', 'taa', 'tga']
@@ -83,6 +91,57 @@ def rename_fasta_seqs(fasta, fasta_out):
     fh.close()
     return(id_map)
 
+    
+def run_and_parse_jmodeltest(in_file, recompute, output_file):
+    if not recompute and os.path.exists(output_file):
+        with open(output_file, 'r') as f:
+            model = f.read()
+            return(model)
+    else:
+        if not os.path.exists('jmodeltest'):
+            os.mkdir('jmodeltest')
+        command = "java -jar {jmodeltest} -d {input_f} -f -i -g 4 -s 11 -AIC -AICc -BIC -a".format(input_f = in_file, jmodeltest = jmodeltest_home)
+        print('Running:', command)
+        command_list = command.split(' ')
+        out = subprocess.check_output(command_list).decode('utf-8')
+        lines = out.split("\n")
+        eof = 0
+        models = {}
+        for line in lines:
+            if 'Best Models' in line:
+                eof = 1
+            if eof == 1:
+                if line.startswith('AIC') or line.startswith('BIC'):
+                    items = [x.strip() for x in line.split("\t")]
+                    models[items[0]] = items[1]
+            else:
+                continue
+        unique_models = set(models.values())
+        if len(unique_models) == 1:    
+            model = list(unique_models)[0]
+        else:
+            model = models['AICc']
+        out_f = open(output_file, 'w')
+        out_f.write(model)
+        out_f.close()
+        return(model)
+    
+    
+def run_phyml(phylip, model, recompute):
+    outfile = phylip + '_phyml_tree.txt'
+    return_file = os.path.join('phyml_trees', os.path.basename(outfile))
+    if not os.path.exists('phyml_trees'):
+        os.mkdir('phyml_trees')
+    if not recompute and os.path.exists(return_file):
+        pass
+    else:
+        command = "~/src/phyml-3.3.20190909/src/phyml -i {phylip} -q -d nt -m {model} -a e -b 100".format(phylip = phylip, model = model)
+        print('Running:', command)
+        p = subprocess.Popen(command, shell = True)
+        os.waitpid(p.pid, 0)
+        shutil.copyfile(outfile, return_file)
+    return(return_file)
+    
 def run_prottest(afa, threads, recompute):
     if not os.path.exists('prottest3'):
         os.mkdir('prottest3')
@@ -392,8 +451,16 @@ def main_cds_tree(fasta, threads, recompute, id_map_filename = False):
     if '-fasttree' in sys.argv:
         tree_filename = run_fasttree(phylip = phylip_filename, threads = threads, recompute = recompute, cds = True)
     else:
-        model = 'GTRGAMMA'
-        tree_filename = run_raxml(model = model, phylip = phylip_filename, threads = threads, recompute = recompute, cds = True)
+        ## run jmodeltest to get the model
+        output_file = 'jmodeltest/' + os.path.basename(align_outfile_name) + ".COMPLETE"
+        model = run_and_parse_jmodeltest(in_file= align_outfile_name, recompute = recompute, output_file = output_file)
+        if "+" in model:
+            model = model.split("+")[0]
+        try:
+            model = jmodeltest_phyml[model]
+        except:
+            model = "HKY85" ## revert to the default model if the one jmodeltest wants isn't part of phyml
+        tree_filename = run_phyml(phylip = phylip_filename, model = model, recompute = recompute)
     return(tree_filename)
 
     
@@ -443,14 +510,14 @@ def main_protein_tree(fasta, threads, recompute):
 def main(argv):
     if len(argv) < 2:
         sys.stderr.write('''Usage: %s <fastafile> <threads> <-r>
-        <fastafile> : the fasta file of orthologs to make a tree of
-        <threads> : the number of threads to use
-        <-r> : recompute everything
-        <-a> : stop after aligning
-        <-p> : stop after prottest
-        <-fasttree>: use fasttree instead of raxml/prottest
-        <-cds>: input type is cds (protein by default)
-        <-yn> : run yn00 to get dn/ds for cds sequences\n''' % os.path.basename(sys.argv[0]))
+        <fastafile>     the fasta file of orthologs to make a tree of
+        <threads>       the number of threads to use
+        <-r>            recompute everything
+        <-a>            stop after aligning
+        <-p>            stop after prottest
+        <-fasttree>     use fasttree instead of raxml
+        <-cds>          input type is cds (protein by default)
+        <-yn>           run yn00 to get dn/ds for cds sequences\n''' % os.path.basename(sys.argv[0]))
         sys.exit(1)
     fasta   = sys.argv[1]
     threads = sys.argv[2]
@@ -479,14 +546,12 @@ def main(argv):
         tree_filename = main_protein_tree(fasta = fasta, threads = threads, recompute = recompute)
         
     ## pull the tree in and fix the newick back to names from the original fasta file
-    print(tree_filename)
     if id_map_filename:
         nwk_out = rename_newick(id_map = id_map_filename, nwk_in = tree_filename)
-        print('Final tree:', nwk_out)
     else:
         nwk_out = os.path.join('final_trees', os.path.basename(tree_filename))
         shutil.copyfile(tree_filename, nwk_out)
-        print('Final tree:', nwk_out)
+    print('Final tree:', nwk_out)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
