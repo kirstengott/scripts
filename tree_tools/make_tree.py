@@ -1,46 +1,16 @@
 #!/usr/bin/env python3
-import os
-import sys
-import subprocess
-import re
+import os, sys, subprocess, re
 import pysam
+from Bio.SeqRecord import SeqRecord
 from Bio import AlignIO
 from Bio import SeqIO
 from Bio.Phylo.PAML import yn00
 from Bio.Seq import Seq
-from Bio.Alphabet import IUPAC, Gapped
+from Bio.Alphabet import IUPAC, Gapped, generic_dna
 import shutil
 from itertools import combinations
 
 
-prottest_home   = "/home/gotting/src/prottest-3.4.2"
-jmodeltest_home = "/home/gotting/src/jmodeltest-2.1.10/jModelTest.jar"
-
-## define a dictionary that converts prottest output into raxml matrix models IDs
-prottest_raxml = {"JTT" : 'JTT',
-                  'LG' : 'LG',
-                  'DCMut' : 'DCMUT',
-                  'MtREV' : 'MTREV',
-                  'MtMam' : 'MTMAM',
-                  'MtArt' : 'MTART',
-                  'Dayhoff' : 'DAYHOFF',
-                  'WAG' : 'WAG',
-                  'RtREV' : 'RTREV',
-                  'CpREV' : 'CPREV',
-                  'Blosum62' : 'BLOSUM62',
-                  'VT' : 'VT',
-                  'HIVb' : 'HIVB',
-                  'HIVw' : 'HIVW',
-                  'FLU' : 'FLU'
-                  }
-
-jmodeltest_phyml = {"JC" :"JC69",
-                    "F81": 'F81',
-                    "HKY": 'HKY85',
-                    'K80' : 'K80',
-                    'F81' : 'F81',
-                    'TrNef' : 'TN93',
-                    'GTR' : 'GTR'}
 
 stop_codons = ['TAG', 'TAA', 'TGA',
                'tag', 'taa', 'tga']
@@ -91,41 +61,38 @@ def rename_fasta_seqs(fasta, fasta_out):
     fh.close()
     return(id_map)
 
-    
-def run_and_parse_jmodeltest(in_file, recompute, output_file):
-    if not recompute and os.path.exists(output_file):
-        with open(output_file, 'r') as f:
-            model = f.read()
-            return(model)
+
+def run_modeltest(in_file, output_file, threads, seq_type, recompute = False):
+    output_here = output_file + '.out'
+    if not recompute and os.path.exists(output_here):
+        pass
     else:
-        if not os.path.exists('jmodeltest'):
-            os.mkdir('jmodeltest')
-        command = "java -jar {jmodeltest} -d {input_f} -f -i -g 4 -s 11 -AIC -AICc -BIC -a".format(input_f = in_file, jmodeltest = jmodeltest_home)
-        print('Running:', command)
-        command_list = command.split(' ')
-        out = subprocess.check_output(command_list).decode('utf-8')
-        lines = out.split("\n")
-        eof = 0
-        models = {}
-        for line in lines:
-            if 'Best Models' in line:
-                eof = 1
-            if eof == 1:
-                if line.startswith('AIC') or line.startswith('BIC'):
-                    items = [x.strip() for x in line.split("\t")]
-                    models[items[0]] = items[1]
+        if not os.path.exists('modeltest'):
+            os.mkdir('modeltest')
+        command = "modeltest-ng -i {input_f} -d {stype} -o {out} -p {threads} -T raxml".format(input_f = in_file, threads = threads, out = output_file, stype = seq_type)
+        print('Running:', command, "to make", output_file)
+        os.system(command)
+
+def parse_modeltest(in_file):
+    in_file = in_file + '.out'
+    next_line = False
+    with open(in_file, 'r') as fh:
+        for line in fh:
+            line = line.strip()
+            if 'Best model according to AICc' in line:
+                next_line = True
+                continue
+            elif next_line == True:
+                if '---' in line:
+                    continue
+                else:
+                    model = re.sub('Model:', '', line)
+                    model = model.strip()
+                    break
             else:
                 continue
-        unique_models = set(models.values())
-        if len(unique_models) == 1:    
-            model = list(unique_models)[0]
-        else:
-            model = models['AICc']
-        out_f = open(output_file, 'w')
-        out_f.write(model)
-        out_f.close()
-        return(model)
-    
+    return(model)
+            
     
 def run_phyml(phylip, model, recompute):
     outfile = phylip + '_phyml_tree.txt'
@@ -142,43 +109,8 @@ def run_phyml(phylip, model, recompute):
         shutil.copyfile(outfile, return_file)
     return(return_file)
     
-def run_prottest(afa, threads, recompute):
-    if not os.path.exists('prottest3'):
-        os.mkdir('prottest3')
-    wd = os.getcwd()
-    afa = os.path.join(wd, afa)
-    file_base = os.path.basename(afa)
-    output_file = os.path.join(wd, 'prottest3', file_base)
-    stdout =  os.path.join(wd, 'prottest3', file_base) + "_stdout"
-    if not recompute and os.path.exists(output_file):
-        pass
-    else:
-        command = "./prottest3 -i {} -I -F -AIC -BIC -AICC -tc 0.5 -o {} -threads {} > {}".format(afa, output_file, threads, stdout)
-        print('Running:', command)
-        p = subprocess.Popen(command, cwd=prottest_home, shell = True)
-        os.waitpid(p.pid, 0)
-    return(output_file)
 
-def parse_prottest(prot_out):
-    f = open(prot_out, 'r')
-    models = {}
-    unique_models = set()
-    get_next = 0
-    for line in f:
-        if 'Best model according to' in line:
-            liner = re.sub('Best model according to ', '', line.rstrip()).split()
-            score = re.sub(":", "", liner[0])
-            model = liner[1]
-            unique_models.add(model)
-            get_next = 1
-        elif get_next == 1:
-            ci = line.rstrip().split()[2]
-            models[score] = [model, ci]
-            get_next = 0
-    if len(unique_models) == 1:
-        return(list(unique_models)[0])
-    else:
-        return(models['AICc'][0]) ## if the models don't converge to one, pick the one with best AICc
+
     
 def run_mafft(fasta, threads, recompute):
     if not os.path.exists('mafft'):
@@ -280,13 +212,8 @@ def run_yn00(phylip, recompute, id_map = False):
         yn.alignment = infile
         yn.out_file = output_filename + '_full'
         yn.working_dir = os.getcwd()
-        try:
-            yn.run(verbose = True, command = '/usr/local/bin/yn00')
-            results = yn00.read(output_filename + "_full")
-            #print(results.keys())
-        except:
-            print('Error parsing results for', infile, 'check', output_filename)
-            results = False
+        yn.run(verbose = False, command = '/usr/local/bin/yn00')
+        results = yn00.read(output_filename + "_full")
         if results:
             if id_map:
                 ids = {}
@@ -307,36 +234,26 @@ def run_yn00(phylip, recompute, id_map = False):
                     outputs = [seq1, seq2, res['dN'], res['dN SE'], res['dS'], res['dS SE']]
                 outputs = ",".join([str(x) for x in outputs])
                 output_file.write(outputs + "\n")
+        else:
+            print('Error parsing results for', infile, 'check', output_filename)
+            results = False
 
 
 
 def run_raxml(model, phylip, threads, recompute, cds = False):
     ''' Runs RaXML using the model, phylip file, and number of threads provided.
-    predefined RaXML options used: 
-    command1: 
-        -f a : rapid Bootstrap analysis and search for best­scoring ML tree in one program run
-        -x : Specify an integer number (random seed) and turn on rapid bootstrapping 
-             CAUTION:   unlike   in   previous   versions   of   RAxML   will   conduct   rapid   BS  
-             replicates under the model of rate heterogeneity you specified via ­m and   
-             not by default under CAT 
-    ## not used
-    command2:
-        -f b : draw bipartition information on a tree provided with ­t (typically the bestknown ML tree) 
-               based on multiple trees (e.g., from a bootstrap) in a file specified by ­z
     '''
     if not os.path.exists('raxml_trees'):
         os.mkdir('raxml_trees')
     output_dir = os.path.join(os.getcwd(), 'raxml_trees')
     name = re.sub('.phylip', '', os.path.basename(phylip))
-    output_filename = 'RAxML_bipartitionsBranchLabels.' + name
+    output_filename = name + '.raxml.bestTree'
     output_filename = os.path.join(output_dir, output_filename)
+    prefix = output_dir + "/" + name
     if not recompute and os.path.exists(output_filename):
         pass
     else:
-        if cds:
-             command1 = "raxmlHPC -w {output} -m {model} -n {name} -s {phylip} -f a -x 897543 -p 345232 -N autoMRE -T {threads} > {output}/{name}_stdout_raxml1.txt".format(model = model, name = name, phylip = phylip, threads = threads, output = output_dir)
-        else:
-            command1 = "raxmlHPC -w {output} -m PROTGAMMA{model} -n {name} -s {phylip} -f a -x 897543 -p 345232 -N autoMRE -T {threads} > {output}/{name}_stdout_raxml1.txt".format(model = model, name = name, phylip = phylip, threads = threads, output = output_dir)
+        command1 = "raxml-ng --all --msa {phylip} --model {model} --prefix {outp} --seed 2 --threads {threads} --bs-metric fbp,tbe > {outp}_stdout_raxml1.txt".format(model = model, phylip = phylip, threads = threads, outp = prefix)
         print('raxml command:', command1)
         p = subprocess.Popen(command1, shell = True)
         os.waitpid(p.pid, 0)
@@ -377,8 +294,6 @@ def rename_newick(id_map, nwk_in):
         new_id = re.sub(",", ".", line[1]) + ":"
         nwk = re.sub(temp_id, new_id, nwk)
     id_map_f.close()
-    if not os.path.exists('final_trees'):
-        os.mkdir('final_trees')
     nwk_out = os.path.join('final_trees', os.path.basename(nwk_in))
     nwk_out_h = open(nwk_out, 'w')
     nwk_out_h.write(nwk)
@@ -392,26 +307,50 @@ def clean_phylip_yn00(align_outfile_name, recompute):
         os.remove(phylip_yn00_filename)
     if not os.path.exists(phylip_yn00_filename):
         align           = AlignIO.read(align_outfile_name, "fasta")
+        ## find stop codons in the last position
+        stop_indices = []
         for record in align:
-            len_r = len(record.seq)
-            last_codon = record.seq[(len_r-3):len_r]
-            ## remove the stop codon for yn00
-            if last_codon in stop_codons:
-                stop_flag = True
-        if stop_flag == True:
+            codons = re.findall(r"(.{3})", str(record.seq))
+            index = 0
+            for x in codons:
+                if x in stop_codons:
+                    if index not in stop_indices:
+                        stop_indices.append(index)
+                    index += 1
+                else:
+                    index += 1
+                    continue
+        if len(stop_indices) > 0:
+            align1 = AlignIO.MultipleSeqAlignment([], Gapped(IUPAC.unambiguous_dna, "-"))
             for record in align:
-                record.seq = record.seq[:-3]
-        SeqIO.write(align, phylip_yn00_filename, "phylip-sequential")
+                codons = re.findall(r"(.{3})", str(record.seq))
+                index = 0
+                new_seq = ''
+                for x in codons:
+                    if index in stop_indices:
+                        index += 1
+                        continue
+                    else:
+                        index += 1
+                        new_seq += x
+                temp_seq = SeqRecord(Seq(new_seq, generic_dna), id = record.id)
+                align1.append(temp_seq)
+            AlignIO.write(align1, phylip_yn00_filename, "phylip-sequential")
+        else:
+            AlignIO.write(align, phylip_yn00_filename, "phylip-sequential")
     return(phylip_yn00_filename)
         
 
 def clean_to_phylip(align_outfile_name, recompute):
         ## convert to phylip and remove redundant  sequences
     phylip_filename = re.sub("afa.trimmed", "phylip", align_outfile_name)
+    redundant_seqs_file = 'redundant_sequences.txt'
     if recompute == True and os.path.exists(phylip_filename):
         os.remove(phylip_filename)
+        os.remove(redundant_seqs_file)
     if not os.path.exists(phylip_filename):
         try:
+            red_seq = open(redundant_seqs_file, 'w')
             align           = AlignIO.read(align_outfile_name, "fasta")
             uniq_seqs = {} ## sequence is the key, values are the names
             ## make the alignment only have unique sequences
@@ -421,28 +360,37 @@ def clean_to_phylip(align_outfile_name, recompute):
                 ## remove empty records that didn't align
                 if set(seq) == set("-"):
                     continue
+                ## concatenate id's of records that are all matches
                 if not seq in uniq_seqs:
                     uniq_seqs[seq] = sid
                 else:
-                    add_record = "," + sid
-                    uniq_seqs[seq] += add_record
+                    line_out = "{} {}".format(uniq_seqs[seq], sid)
+                    red_seq.write(line_out)
+                    continue
+                    #add_record = "_" + sid + ' '
+                    #uniq_seqs[seq] += add_record
+            red_seq.close()
             align1 = AlignIO.MultipleSeqAlignment([], Gapped(IUPAC.unambiguous_dna, "-"))
             for x in uniq_seqs:
                 align1.add_sequence(uniq_seqs[x], x)
             if align1.get_alignment_length() >= 30:
-                SeqIO.write(align, phylip_filename, "phylip-sequential")
+                AlignIO.write(align1, phylip_filename, "phylip-sequential")
         except:
             print(align_outfile_name, 'too short to continue after trimming')
     return(phylip_filename)
 
-def main_cds_tree(fasta, threads, recompute, id_map_filename = False):
-    fasta                = check_nucleotides_dialign(fasta)
-    dialign_outfile_name = run_dialign(fasta = fasta, recompute = recompute)
-    align_outfile_name   = run_trimal(afa = dialign_outfile_name, recompute = recompute)
+def main_cds_tree(fasta, threads, recompute, id_map_filename = False, mafft = False):
+    if mafft == True:
+        align_outfile_name = run_mafft(fasta = fasta, threads = threads, recompute = recompute)
+    else:
+        fasta                = check_nucleotides_dialign(fasta)
+        align_outfile_name = run_dialign(fasta = fasta, recompute = recompute)
+        
+    align_outfile_name   = run_trimal(afa = align_outfile_name, recompute = recompute)
     phylip_filename      = clean_to_phylip(align_outfile_name = align_outfile_name, recompute = recompute)
             
     if '-yn' in sys.argv:
-        phylip_yn00_filename = clean_phylip_yn00(align_outfile_name = dialign_outfile_name, recompute = recompute)
+        phylip_yn00_filename = clean_phylip_yn00(align_outfile_name = align_outfile_name, recompute = recompute)
         run_yn00(phylip = phylip_yn00_filename, recompute = recompute, id_map = id_map_filename)
     if '-a' in sys.argv:
         sys.exit()
@@ -451,16 +399,24 @@ def main_cds_tree(fasta, threads, recompute, id_map_filename = False):
     if '-fasttree' in sys.argv:
         tree_filename = run_fasttree(phylip = phylip_filename, threads = threads, recompute = recompute, cds = True)
     else:
-        ## run jmodeltest to get the model
-        output_file = 'jmodeltest/' + os.path.basename(align_outfile_name) + ".COMPLETE"
-        model = run_and_parse_jmodeltest(in_file= align_outfile_name, recompute = recompute, output_file = output_file)
-        if "+" in model:
-            model = model.split("+")[0]
-        try:
-            model = jmodeltest_phyml[model]
-        except:
-            model = "HKY85" ## revert to the default model if the one jmodeltest wants isn't part of phyml
-        tree_filename = run_phyml(phylip = phylip_filename, model = model, recompute = recompute)
+        ## run modeltest to get the model
+        output_file = 'modeltest/' + os.path.basename(align_outfile_name) + ".COMPLETE"
+        if not recompute and os.path.exists(output_file):
+            with open(output_file, 'r') as f:
+                model = parse_model_test(in_file = output_file)
+        else:
+            print('Starting modeltest on', output_file)
+            run_modeltest(in_file= align_outfile_name,
+                                            recompute = recompute,
+                                            output_file = output_file,
+                                            threads = threads,
+                                            seq_type = 'nt')
+            model = parse_modeltest(in_file = output_file)
+            
+        if "-p" in sys.argv:
+            print('Exiting at modeltest', output_file, 'done')
+            sys.exit()
+        tree_filename = run_raxml(model = model, phylip = phylip_filename, threads = threads, recompute = recompute, cds = True)
     return(tree_filename)
 
     
@@ -514,8 +470,9 @@ def main(argv):
         <threads>       the number of threads to use
         <-r>            recompute everything
         <-a>            stop after aligning
-        <-p>            stop after prottest
+        <-p>            stop after prottest or jmodeltest
         <-fasttree>     use fasttree instead of raxml
+        <-mafft>        align cds with mafft
         <-cds>          input type is cds (protein by default)
         <-yn>           run yn00 to get dn/ds for cds sequences\n''' % os.path.basename(sys.argv[0]))
         sys.exit(1)
@@ -525,6 +482,10 @@ def main(argv):
         recompute = True
     else:
         recompute = False
+    if '-mafft' in sys.argv:
+        mafft = True
+    else:
+        mafft = False
         
     ## first check the fasta file for names lengths
     fa_header_flag = check_fasta_headers(fasta)
@@ -536,16 +497,20 @@ def main(argv):
         out_fasta = os.path.join(renamed_fa_dir, os.path.basename(fasta))
         id_map_filename = rename_fasta_seqs(fasta, out_fasta)
         fasta = out_fasta
+    elif 'id_map.txt' in os.listdir('.'):
+            id_map_filename = 'id_map.txt'
     else:
         id_map_filename = False
 
     ## implement different subroutines for cds/protein sequences
     if '-cds' in sys.argv:    
-        tree_filename = main_cds_tree(fasta = fasta, threads = threads, recompute = recompute, id_map_filename = id_map_filename)
+        tree_filename = main_cds_tree(fasta = fasta, threads = threads, recompute = recompute, id_map_filename = id_map_filename, mafft = mafft)
     else:
         tree_filename = main_protein_tree(fasta = fasta, threads = threads, recompute = recompute)
         
     ## pull the tree in and fix the newick back to names from the original fasta file
+    if not os.path.exists('final_trees'):
+        os.mkdir('final_trees')
     if id_map_filename:
         nwk_out = rename_newick(id_map = id_map_filename, nwk_in = tree_filename)
     else:

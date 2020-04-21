@@ -42,7 +42,7 @@ ids=`cat $file`
 for id in $ids
 do
     first_ind=`echo $id | grep -o -P 'SRR[0-9]{3}'`
-    wget ftp://ftp-trace.ncbi.nih.gov/sra/sra-instant/reads/ByRun/sra/SRR/${first_ind}/${id}/${id}.sra
-    #prefetch $id #prefetch the SRA id
-    fastq-dump --outdir $dir --gzip --skip-technical --readids --read-filter pass --dumpbase --split-3 --clip $id #dump the fastqs for the fetched SRA
+    #wget ftp://ftp-trace.ncbi.nih.gov/sra/sra-instant/reads/ByRun/sra/SRR/${first_ind}/${id}/${id}.sra
+    prefetch $id #prefetch the SRA id
+    fastq-dump --outdir $dir --gzip --skip-technical --readids --read-filter pass --dumpbase --split-3 --clip ${id} #dump the fastqs for the fetched SRA
 done
