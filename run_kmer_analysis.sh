@@ -1,16 +1,16 @@
 #!/bin/bash
 
-gs="/home/kgotting/genomescope2.0/genomescope.R"
 
 usage="Usage: ./bowtie_align.sh -i <ref_id_file> -o <output_dir>
                 -h: this help message.
                 -i: unique ids for files to process
                 -o: output directory
                 -p: number of threads
+                -g: path to genomescope bin
 "
 
 
-while getopts ":hi:o:p:" opt; do
+while getopts ":hi:o:p:g:" opt; do
     case $opt in
 	h)
 	    echo "$usage" >&2
@@ -24,6 +24,9 @@ while getopts ":hi:o:p:" opt; do
 	    ;;
 	p)
 	    threads="$OPTARG" >&2
+	    ;;
+	g)
+	    gs="$OPTARG" >&2
 	    ;;
 	\?)
 	    echo "Invalid option: -$OPTARG" >&2

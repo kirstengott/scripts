@@ -53,16 +53,15 @@ def write_treedb_diction2fasta(matches_dictionary,
     if not os.path.exists(output_directory):
         os.mkdir(output_directory)
         print('Made directory:', output_directory)
-    if os.path.exists('seqid_map.txt'):
-        os.remove('seqid_map.txt')
-    id_map = open('seqid_map.txt', 'a')
+    if os.path.exists('id_map.txt'):
+        os.remove('id_map.txt')
+    id_map = open('id_map.txt', 'a')
     ind = 1
     fasta_files = [os.path.basename(x) for x in Path(fasta_dir).rglob('*a')]
     for i in matches_dictionary.keys():
         sub_dictionary = matches_dictionary[i]
         fa_match_file = [x for x in fasta_files if i in x][0]
         fasta_reference = os.path.join(fasta_dir, fa_match_file)
-        print(fasta_reference)
         if keep_sequences:
             keep_seqs = [sub_dictionary[x] for x in keep_sequences]
             names_scheme = keep_sequences
@@ -78,7 +77,7 @@ def write_treedb_diction2fasta(matches_dictionary,
             out_f.write(">seq" + str(ind) + "\n") ## write out the sequence with the original FASTA file as the id (for tree building) 
             out_f.write(y + "\n")
             out_f.close()
-        id_map.write(i + "\tseq" + str(ind) + "\n")
+        id_map.write('seq' + str(ind) + "\t" + i + "\n")
         ind += 1
     ## finish out the function    
     id_map.close()
@@ -136,12 +135,16 @@ def busco_3_1_0(b_out_files, input_fa_dir, busco_out_dir):
 def main(argv):
     if len(argv) < 2:
         sys.stderr.write('''Usage: %s <in.busco.output.dir> <output.dir> [in.reference.fasta.dir]
-                         in.busco.output.dir: the directory housing BUSCO results for every species being compared
-                         output.dir: where to write the output
+                         in.busco.output.dir: the directory housing BUSCO results for every species being compared, must be the prefix of the fasta file
+                         output.dir: directory to create for storing output
                          in.reference.fasta.dir: fasta file directory used for BUSCO input [optional if not using BUSCOv3.1.0]\n''' % os.path.basename(sys.argv[0]))
         sys.exit(1)
     input_dir     = sys.argv[1]
     busco_out_dir = sys.argv[2]
+    if os.path.exists(busco_out_dir):
+        print(busco_out_dir, 'exists, removing..')
+        os.remove(busco_out_dir)
+    
     ## read in BUSCO data and create a dictionary of all of the results
     dirs = os.listdir(input_dir)
     b_out_files = {}
@@ -155,11 +158,20 @@ def main(argv):
             sum_file = open(summary_file, 'r')
             lines = [x.strip() for x in sum_file]
             sum_file.close()
-            b_out_files[d] = b_file
+            
             if '3.1.0' in lines[0]:
                 version = '3.1.0'
             else:
                 version = 'NA'
+            for line in lines:
+                if line.startswith('C'):
+                    complete = float(re.sub("C:", "", line.split("%")[0]))
+                else:
+                    continue
+            if complete >= 80:
+                b_out_files[d] = b_file
+            else:
+                print(d, complete, 'exluded')
         except:
             continue
             #print('No files detected in', d, ',excluding from analysis')
