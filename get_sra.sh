@@ -1,9 +1,9 @@
 #!/bin/bash
 
 
-usage="Usage: ./get_sra.sh -f <SraRunInfo.csv>
+usage="Usage: ./get_sra.sh -f <SRR file> -d <outdir>
                 -h: this help message.
-                -f: SraRunInfo.csv [REQUIRED]
+                -f: File with SRR accessions [REQUIRED]
                 -d: outdir [required]
 
 "
@@ -39,10 +39,12 @@ done
 
 ids=`cat $file`
 
+mkdir $dir
+
 for id in $ids
 do
-    base=`echo $id | sed -e`
-    wget ftp://ftp-trace.ncbi.nih.gov/sra/sra-instant/reads/ByRun/sra/SRR/SRR###/SRR#######/SRR#######.sra
+    base=`echo $id | sed -E "s/(SRR[0-9]{3}).*$/\1/"`
+    wget ftp://ftp-trace.ncbi.nih.gov/sra/sra-instant/reads/ByRun/sra/SRR/${base}/${id}/${id}.sra
     #prefetch $id #prefetch the SRA id
-    fastq-dump --outdir $dir --gzip --skip-technical --readids --read-filter pass --dumpbase --split-3 --clip $id #dump the fastqs for the fetched SRA
+    fastq-dump --outdir $dir --gzip --skip-technical --readids --read-filter pass --dumpbase --split-3 --clip ${id}.sra #dump the fastqs for the fetched SRA
 done
