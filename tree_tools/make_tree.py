@@ -10,16 +10,15 @@ from Bio.Alphabet import IUPAC, Gapped, generic_dna
 import shutil
 from itertools import combinations
 from pathlib import Path
-home = str(Path.home())
+
+script_dir = os.path.dirname(os.path.realpath(__file__))
 
 
 stop_codons = ['TAG', 'TAA', 'TGA',
                'tag', 'taa', 'tga']
 
-#dialignconf = home + '/src/DIALIGN-TX_1.0.2/conf'
-# if not os.path.exists(dialignconf):
-#     print(dialignconf, 'does not exist, fix path')
-#     sys.exit(1)
+dialignconf = os.path.join(script_dir, 'conf/DIALIGN-TX_1.0.2_conf')
+
 
 def check_fasta_headers(fasta):
     '''Check the fasta headers to see if they are longer
