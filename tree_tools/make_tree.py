@@ -9,12 +9,17 @@ from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC, Gapped, generic_dna
 import shutil
 from itertools import combinations
-
+from pathlib import Path
+home = str(Path.home())
 
 
 stop_codons = ['TAG', 'TAA', 'TGA',
                'tag', 'taa', 'tga']
 
+#dialignconf = home + '/src/DIALIGN-TX_1.0.2/conf'
+# if not os.path.exists(dialignconf):
+#     print(dialignconf, 'does not exist, fix path')
+#     sys.exit(1)
 
 def check_fasta_headers(fasta):
     '''Check the fasta headers to see if they are longer
@@ -102,7 +107,7 @@ def run_phyml(phylip, model, recompute):
     if not recompute and os.path.exists(return_file):
         pass
     else:
-        command = "~/src/phyml-3.3.20190909/src/phyml -i {phylip} -q -d nt -m {model} -a e -b 100".format(phylip = phylip, model = model)
+        command = "phyml -i {phylip} -q -d nt -m {model} -a e -b 100".format(phylip = phylip, model = model)
         print('Running:', command)
         p = subprocess.Popen(command, shell = True)
         os.waitpid(p.pid, 0)
@@ -162,10 +167,6 @@ def run_dialign(fasta, recompute):
     if not recompute and os.path.exists(output_file):
         pass
     else:
-        dialignconf = '/home/gotting/src/DIALIGN-TX_1.0.2/conf'
-        if not os.path.exists(dialignconf):
-            print(dialignconf, 'does not exist, fix path')
-            sys.exit(1)
         command = "dialign-tx -T {} {} {}".format(dialignconf, fasta, output_file)
         print('Running:', command)
         p = subprocess.Popen(command, shell=True)
@@ -212,7 +213,7 @@ def run_yn00(phylip, recompute, id_map = False):
         yn.alignment = infile
         yn.out_file = output_filename + '_full'
         yn.working_dir = os.getcwd()
-        yn.run(verbose = False, command = '/usr/local/bin/yn00')
+        yn.run(verbose = False)
         results = yn00.read(output_filename + "_full")
         if results:
             if id_map:
