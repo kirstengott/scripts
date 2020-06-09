@@ -16,21 +16,18 @@ def main(argv):
 
     in_handle = open(in_file)
 
-    scaffold_names_dict = {}
-    
+    genes_in_bgc = []
     with open(txt_file, 'r') as t_file:
         for line in t_file:
             l = line.strip().split("\t")
             all_antismash_genes = l[3].split(";")
             for gene in all_antismash_genes:
-                scaffold_names_dict[gene] = [l[1], l[2]]
-    gene = ''
-    gff3_lines = []
+                if gene not in genes_in_bgc:
+                    genes_in_bgc.append(gene)
     parent = ''
-    cluster_items = []
-    scaffold = ''
-    cluster_pass = False
+    gene   = ''
     for record in SeqIO.parse(in_handle, "genbank"):
+        scaffold = record.id
         for feature in record.features:
             end = feature.location.end
             start = feature.location.start + 1
@@ -53,15 +50,11 @@ def main(argv):
             else:
                 phase = '-'
             if f_type == 'cluster':
-                cluster_pass = True
                 parent = quals['note'][0]
                 parent = 'cluster_' + parent.split(" ")[-1]
                 attributes = "ID={0};Name={0};Note=contig_edge:{1},product:{2},GenomeID:{3}".format(parent, quals['contig_edge'][0], quals['product'][0], genome_id)
                 source = 'antismash4'
-                cluster_items = [source, f_type, str(start), str(end), str(score), str(strand), phase, attributes]
             else:
-                if cluster_pass == False:
-                    continue
                 if f_type == "CDS":
                     if 'note' in quals.keys():
                         if 'gene' in quals.keys():
@@ -99,22 +92,14 @@ def main(argv):
                 else:
                     print("Missing feature, exiting program")
                     sys.exit()
-                if gene:
-                    if gene in scaffold_names_dict.keys():
-                        scaffold = scaffold_names_dict[gene][0]
-                    else:
-                        scaffold = 'unk'
                 attributes += ",GenomeID:" + genome_id
                 scaffold = re.sub(" .*$", "", scaffold)
-                items_all = [scaffold, source, f_type, str(start), str(end), str(score), str(strand), phase, attributes]
-                gff3_lines.append(items_all)
-                gene = ''
-
-    cluster_items.insert(0,scaffold)
-    gff3_lines.insert(0, cluster_items)
-    all_lines = "\n".join(["\t".join(x) for x in gff3_lines])
-    print(all_lines)
-
+                if gene:
+                    if gene not in genes_in_bgc:
+                        continue
+                        
+            items_all = [scaffold, source, f_type, str(start), str(end), str(score), str(strand), phase, attributes]
+            print("\t".join(items_all))
     in_handle.close()
 
 if __name__ == '__main__':
