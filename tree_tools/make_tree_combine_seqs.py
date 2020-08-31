@@ -91,6 +91,9 @@ def main(argv):
     coords_all = {}
     start = 1
     total_len = 0
+
+    sp_name = set()
+    gene_lens = {}
     
     for fasta in fastas:
         gene_name_f = os.path.join(id_maps, re.sub('.afa.trimmed', '', fasta) + "_id_map.txt")
@@ -101,30 +104,52 @@ def main(argv):
                 gene_name_dict[line[0]] = line[1]
         fasta = os.path.join(fasta_dir, fasta)
         fa = pysam.FastxFile(fasta)
-        coord_flag = 0
-        len_1 = False
+
         num_seq = 0
         for x in fa:
             num_seq += 1
             name = gene_name_dict[x.name]
-            if name in seqs_all:
-                seqs_all[name] += x.sequence
-            else:
-                seqs_all[name] = x.sequence
-            if coord_flag == 0:
-                if start == 1:
-                    end = len(x.sequence)
-                else:
-                    end = start + len(x.sequence) -1     
-                coords_all[fasta] = [start, end]
-                start = end + 1 
-                total_len += len(x.sequence)
-                coord_flag = 1
+            sp_name.add(name)
+            if fasta not in seqs_all:
+                seqs_all[fasta] = {}
+                
+            if name not in seqs_all[fasta]:
+                seqs_all[fasta][name] = x.sequence
+                
         fa.close()
-
-
-
         
+    for i in seqs_all:
+        coord_flag = 0
+        len_1 = False
+        for x in seqs_all[i]: ## pull out the length of the gene
+            gene_len = int(len(seqs_all[i][x]))
+            if start == 1:
+                end = gene_len
+            else:
+                end = start + gene_len -1
+            coords_all[i] = [start, end]
+            start = end + 1 
+            total_len += gene_len
+            break
+        for species in sp_name: ## add in missing sequences with gaps
+            if not species in seqs_all[i]:
+                seq = "-" * gene_len
+                seqs_all[i][species] = seq
+
+
+    seqs_all_t = {}
+    for i in seqs_all:
+        for x in seqs_all[i]:
+            if x not in seqs_all_t:
+                seqs_all_t[x] = seqs_all[i][x]
+            else:
+                seqs_all_t[x] += seqs_all[i][x]
+
+    
+    #print(seqs_all_t['ICBG712'])
+    #print(total_len)
+    #print(len(seqs_all_t['ICBG712']))
+    #sys.exit()
 
     partition_f = 'concatenated_alignments.part'
     partition = open(partition_f, 'w')
@@ -157,16 +182,11 @@ def main(argv):
 
     
     
-    for x in seqs_all:
-        print(x)
-        print(len(seqs_all[x]))
-        
-        #seqname = "seq" + str(count)
-        #ids.write(seqname + "\t" + x + "\n")
-        #align.add_sequence(seqname, seqs_all[x])
+    for x in seqs_all_t: 
+        seqname = "seq" + str(count)
+        ids.write(seqname + "\t" + x + "\n")
+        align.add_sequence(seqname, seqs_all_t[x])
         count += 1
-    print(total_len)
-    sys.exit()
     ids.close()
 
     SeqIO.write(align, phylip_filename, "phylip-sequential")

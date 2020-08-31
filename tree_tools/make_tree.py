@@ -326,8 +326,6 @@ def rename_newick(id_map, nwk_in):
             nwk = re.sub(temp_id, new_id, nwk)
     id_map_f.close()
     nwk_out = os.path.join('final_trees', os.path.basename(nwk_in))
-    print(nwk)
-    sys.exit()
     nwk_out_h = open(nwk_out, 'w')
     nwk_out_h.write(nwk)
     nwk_out_h.close()
