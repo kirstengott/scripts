@@ -158,14 +158,13 @@ def main(argv):
     
     
     for x in seqs_all:
-        print(x)
-        print(len(seqs_all[x]))
+        if len(seqs_all[x]) != total_len:
+            
         
         #seqname = "seq" + str(count)
         #ids.write(seqname + "\t" + x + "\n")
         #align.add_sequence(seqname, seqs_all[x])
         count += 1
-    print(total_len)
     sys.exit()
     ids.close()
 

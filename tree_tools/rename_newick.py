@@ -6,6 +6,7 @@ def rename_newick(id_map, nwk_in):
     id_map_f = open(id_map, 'r')
     nwk = nwk_f.readlines()[0]
     nwk_f.close()
+    nwk = re.sub("'", "", nwk)
     for line in id_map_f:
         line = line.rstrip().split()
         temp_id = line[0] + ':'

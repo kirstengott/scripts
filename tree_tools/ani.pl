@@ -1,4 +1,4 @@
-#!/bin/env perl
+#!/usr/bin/env perl
 
 ## this script was from Marc Chevrette, I just added in the column with mean ANI
 use strict;
@@ -28,7 +28,7 @@ foreach my $q (@genomes){
 	}
 	close $vfh;
 	my $ani_mean = 0;
-	$ani_mean = sum($ani_array)/$ani_length;
+	$ani_mean = sum($ani_array)/($ani_length + 0.00000001);
 	print $ofh join("\t", $q, $ref, $ani_mean, $alen)."\n";
 	system("rm tmp.txt*");
     }

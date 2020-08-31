@@ -260,6 +260,33 @@ def run_raxml(model, phylip, threads, recompute, cds = False):
     return(output_filename)
 
 
+
+
+
+def run_iqtree(phylip, threads, recompute, cds = False):
+    ''' Runs iqtree with phylip file, and number of threads provided.
+    '''
+    if not os.path.exists('iqtrees'):
+        os.mkdir('iqtrees')
+    output_dir = os.path.join(os.getcwd(), 'iqtrees')
+    name = re.sub('.phylip', '', os.path.basename(phylip))
+    prefix = output_dir + "/" + name
+    output_filename = name + '.treefile'
+    output_filename = os.path.join(output_dir, output_filename)
+    if not recompute and os.path.exists(output_filename):
+        pass
+    else:
+        command1 = "iqtree -s {phylip} -nt {threads} -bb 1000 -alrt 1000 -pre {outp} > {outp}_stdout_iqtree.txt".format(phylip = phylip, threads = threads, outp = prefix)
+        print('iqtree command:', command1)
+        p = subprocess.Popen(command1, shell = True)
+        os.waitpid(p.pid, 0)
+    return(output_filename)
+
+
+
+
+
+
 def run_fasttree(phylip, threads, recompute, cds = False):
     ''' Runs FastTree, phylip file, and number of threads provid.
     '''
@@ -283,7 +310,7 @@ def run_fasttree(phylip, threads, recompute, cds = False):
 
 
 def rename_newick(id_map, nwk_in):
-    print(nwk_in)
+    #print(nwk_in)
     nwk_f = open(nwk_in, 'r')
     id_map_f = open(id_map, 'r')
     nwk = nwk_f.readlines()[0]
@@ -291,10 +318,16 @@ def rename_newick(id_map, nwk_in):
     for line in id_map_f:
         line = line.rstrip().split()
         temp_id = line[0] + ':'
-        new_id = re.sub(",", ".", line[1]) + ":"
-        nwk = re.sub(temp_id, new_id, nwk)
+        if len(re.findall(temp_id, line[1])):
+                print('Mulitple taxa placement:', new_id)
+                continue
+        else:
+            new_id = re.sub(",", ".", line[1]) + ":"
+            nwk = re.sub(temp_id, new_id, nwk)
     id_map_f.close()
     nwk_out = os.path.join('final_trees', os.path.basename(nwk_in))
+    print(nwk)
+    sys.exit()
     nwk_out_h = open(nwk_out, 'w')
     nwk_out_h.write(nwk)
     nwk_out_h.close()
@@ -380,8 +413,12 @@ def clean_to_phylip(align_outfile_name, recompute):
     return(phylip_filename)
 
 def main_cds_tree(fasta, threads, recompute, id_map_filename = False, mafft = False):
+    if threads == 'AUTO':
+        tr = '1'
+    else:
+        tr = threads
     if mafft == True:
-        align_outfile_name = run_mafft(fasta = fasta, threads = threads, recompute = recompute)
+        align_outfile_name = run_mafft(fasta = fasta, threads = tr, recompute = recompute)
     else:
         fasta                = check_nucleotides_dialign(fasta)
         align_outfile_name = run_dialign(fasta = fasta, recompute = recompute)
@@ -405,18 +442,7 @@ def main_cds_tree(fasta, threads, recompute, id_map_filename = False, mafft = Fa
             with open(output_file, 'r') as f:
                 model = parse_model_test(in_file = output_file)
         else:
-            print('Starting modeltest on', output_file)
-            run_modeltest(in_file= align_outfile_name,
-                                            recompute = recompute,
-                                            output_file = output_file,
-                                            threads = threads,
-                                            seq_type = 'nt')
-            model = parse_modeltest(in_file = output_file)
-            
-        if "-p" in sys.argv:
-            print('Exiting at modeltest', output_file, 'done')
-            sys.exit()
-        tree_filename = run_raxml(model = model, phylip = phylip_filename, threads = threads, recompute = recompute, cds = True)
+            tree_filename = run_iqtree(phylip = phylip_filename, threads = threads, recompute = recompute, cds = True)
     return(tree_filename)
 
     
@@ -432,33 +458,7 @@ def main_protein_tree(fasta, threads, recompute):
     if '-fasttree' in sys.argv:
         tree_filename = run_fasttree(phylip = phylip_filename, threads = threads, recompute = recompute)
     else:
-        ## run and parse prottest3 resutls
-        prottest_outfile_name = run_prottest(afa = phylip_filename, threads = threads, recompute = recompute)
-        if '-p' in sys.argv:
-            sys.exit()
-        model_init = parse_prottest(prottest_outfile_name)
-        model_all = model_init.split("+")
-
-        ## check to see if the model is available to raxml, otherwise report it
-        try:
-            if len(model_all) > 1:
-                if model_all[1] == 'I':
-                    model = 'I' + prottest_raxml[model_all[0]]
-                else:
-                    model = prottest_raxml[model_all[0]]
-                    print('unkown model:', model_all, 'using', model[0])
-            else:
-                model = prottest_raxml[model_all[0]]
-            print('Using {} model for RaXML'.format(model))
-            include_file = open('included_alignment_models.txt', 'a')
-            include_file.write("{} {}\n".format(mafft_outfile_name, model))
-        except:
-            exlude_file = open('exluded_alignment_models.txt', 'a')
-            print('Model', model_init, 'not available for raxml, having raxml estimate')
-            exlude_file.write("{} {}\n".format(phylip_filename, model_init))
-            exlude_file.close()
-            sys.exit()
-        tree_filename = run_raxml(model = model, phylip = phylip_filename, threads = threads, recompute = recompute)
+        tree_filename = run_iqtree(phylip = phylip_filename, threads = threads, recompute = recompute, cds = False)
     return(tree_filename)
         
 
@@ -486,6 +486,7 @@ def main(argv):
         mafft = True
     else:
         mafft = False
+    print('Processing:', fasta)
         
     ## first check the fasta file for names lengths
     fa_header_flag = check_fasta_headers(fasta)
@@ -511,12 +512,13 @@ def main(argv):
     ## pull the tree in and fix the newick back to names from the original fasta file
     if not os.path.exists('final_trees'):
         os.mkdir('final_trees')
+        
     if id_map_filename:
         nwk_out = rename_newick(id_map = id_map_filename, nwk_in = tree_filename)
     else:
         nwk_out = os.path.join('final_trees', os.path.basename(tree_filename))
         shutil.copyfile(tree_filename, nwk_out)
-    print('Final tree:', nwk_out)
+    #print('Final tree:', nwk_out)
 
 if __name__ == '__main__':
     main(sys.argv[1:])

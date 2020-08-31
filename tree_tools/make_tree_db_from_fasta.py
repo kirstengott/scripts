@@ -3,9 +3,63 @@ from Bio.Blast.Applications import NcbiblastpCommandline
 from Bio.Blast.Applications import NcbiblastnCommandline
 import os
 import glob
-import make_busco_tree_db
 import sys
 import re
+
+def get_shared_ids(key_counts, total_db_length):
+    '''
+    Return the BUSCO ids that are present in all species
+    '''
+    id_pass = []
+    for i in key_counts:
+        if key_counts[i] == total_db_length:
+            id_pass.append(i)
+    return(id_pass)
+def write_treedb_diction2fasta(matches_dictionary,
+                               fasta_dir,
+                               output_directory,
+                               keep_sequences = False):
+    ''' 
+    For all BUSCO ids, write out a FASTA file with proteins sequences pertaining.
+    Create a naming scheme for genomes suitable for RaXML with a file encoding 
+    the original genomes nameshoused in 'seqid_map.txt'
+    matches_dictionary: dictionary containing BUSCO to genome to gene id mappings
+    fasta_dir: directory containing fasta files for genes
+    output_directory: where to store the resulting fasta files
+    keep_sequences: subset of sequences to output
+    ''' 
+    if not os.path.exists(output_directory):
+        os.mkdir(output_directory)
+        print('Made directory:', output_directory)
+    if os.path.exists('id_map.txt'):
+        os.remove('id_map.txt')
+    id_map = open('id_map.txt', 'a')
+    ind = 1
+    fasta_files = [os.path.basename(x) for x in Path(fasta_dir).rglob('*a')]
+    for i in matches_dictionary.keys():
+        sub_dictionary = matches_dictionary[i]
+        fa_match_file = [x for x in fasta_files if i in x][0]
+        fasta_reference = os.path.join(fasta_dir, fa_match_file)
+        if keep_sequences:
+            keep_seqs = [sub_dictionary[x] for x in keep_sequences]
+            names_scheme = keep_sequences
+        else:
+            keep_seqs = sub_dictionary.values()
+            names_scheme = sub_dictionary.keys()
+        ## fetch the kept sequences
+        sequences = fetch_fasta(fasta_reference, keep_seqs)
+        ## write out the fasta files
+        for b, y in zip(names_scheme, sequences):
+            out_file = output_directory + "/" + re.sub('.*\|', '', b) + ".fa"
+            out_f = open(out_file, 'a')
+            out_f.write(">seq" + str(ind) + "\n") ## write out the sequence with the original FASTA file as the id (for tree building) 
+            out_f.write(y + "\n")
+            out_f.close()
+        id_map.write('seq' + str(ind) + "\t" + i + "\n")
+        ind += 1
+    ## finish out the function    
+    id_map.close()
+
 
 def make_blast_dictionary(results, r, q):
     b_map = {}
@@ -44,8 +98,10 @@ def main(argv):
     reference = sys.argv[2] ## in this case whichever one has the fewest proteins
     output_directory = sys.argv[3]
     reference_path = db + "/" + reference ## in this case whichever one has the fewest proteins
+
     st = db + "/"
-    protein_files = [re.sub(st, '', x) for x in glob.glob(db + "/*fa")]                 
+    filename, ext = os.path.splitext(reference)
+    protein_files = [re.sub(st, '', x) for x in glob.glob(db + "/*" + ext)]
     ## take out the reference sequence
     protein_files.remove(reference)
 
@@ -113,9 +169,9 @@ def main(argv):
                 key_counts[x] = 1
             else:
                 key_counts[x] += 1
-    keeps = make_busco_tree_db.get_shared_ids(key_counts = key_counts, total_db_length = len(protein_files))
+    keeps = get_shared_ids(key_counts = key_counts, total_db_length = len(protein_files))
     ## write out everything
-    make_busco_tree_db.write_treedb_diction2fasta(matches_dictionary = all_matches,
+    write_treedb_diction2fasta(matches_dictionary = all_matches,
                                                   fasta_dir = db,
                                                   output_directory = output_directory,
                                                   keep_sequences = keeps)
