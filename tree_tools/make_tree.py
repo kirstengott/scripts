@@ -606,11 +606,6 @@ def main(argv):
         <threads>       the number of threads to use
         <-r>            recompute everything
         <-a>            stop after aligning
-        <-p>            stop after prottest or jmodeltest
-        <-fasttree>     use fasttree instead of raxml
-        <-mafft>        align cds with mafft
-        <-dialign>      align cds with dialign
-        <-cds>          input type is cds (protein by default)
         <-yn>           run yn00 to get dn/ds for cds sequences\n''' % os.path.basename(sys.argv[0]))
         sys.exit(1)
     fasta   = sys.argv[1]
@@ -644,11 +639,7 @@ def main(argv):
     else:
         id_map_filename = False
 
-    ## implement different subroutines for cds/protein sequences
-    if '-cds' in sys.argv:    
-        tree_filename = main_cds_tree(fasta = fasta, threads = threads, recompute = recompute, id_map_filename = id_map_filename, mafft = mafft, dialign = dialign)
-    else:
-        tree_filename = main_protein_tree(fasta = fasta, threads = threads, recompute = recompute)
+    tree_filename = main_protein_tree(fasta = fasta, threads = threads, recompute = recompute)
         
     ## pull the tree in and fix the newick back to names from the original fasta file
     if not os.path.exists('final_trees'):
