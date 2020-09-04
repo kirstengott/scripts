@@ -177,6 +177,25 @@ def run_dialign(fasta, recompute):
     return(output_file)
 
 
+def run_prank(fasta, recompute):
+    if not os.path.exists('prank'):
+        os.mkdir('prank')
+    output_prefix = os.path.join('prank', os.path.splitext(os.path.basename(os.path.splitext(fasta)[0]))[0])
+    output_file   = output_prefix + '.best.fas'
+    if not recompute and os.path.exists(output_file):
+        pass
+    else:
+        command = "prank -d={} -o={} -showanc -showevents -codon -F".format(fasta, output_prefix)
+        print('Running:', command)
+        p = subprocess.Popen(command, shell=True)
+        pid = os.waitpid(p.pid, 0)
+        pid = list(pid)[1]
+        if pid != 0:
+            print('prank failed, check input fasta file')
+            sys.exit()
+    return(output_file)
+
+
 
 def run_trimal(afa, recompute):
     ''' Runs TrimAl to trim the alignments. 
@@ -212,7 +231,7 @@ def run_yn00(phylip, recompute, id_map = False):
         yn.alignment = infile
         yn.out_file = output_filename + '_full'
         yn.working_dir = os.getcwd()
-        yn.run(verbose = False)
+        yn.run(verbose = True)
         results = yn00.read(output_filename + "_full")
         if results:
             if id_map:
@@ -247,35 +266,34 @@ def run_raxml(model, phylip, threads, recompute, cds = False):
         os.mkdir('raxml_trees')
     output_dir = os.path.join(os.getcwd(), 'raxml_trees')
     name = re.sub('.phylip', '', os.path.basename(phylip))
-    output_filename = name + '.raxml.bestTree'
-    output_filename = os.path.join(output_dir, output_filename)
     prefix = output_dir + "/" + name
-    if not recompute and os.path.exists(output_filename):
+    output_filename = prefix + ".raxml.bestTree"
+    if not recompute and os.path.exists(prefix + '.raxml.bootstraps'):
         pass
     else:
-        command1 = "raxml-ng --all --msa {phylip} --model {model} --prefix {outp} --seed 2 --threads {threads} --bs-metric fbp,tbe > {outp}_stdout_raxml1.txt".format(model = model, phylip = phylip, threads = threads, outp = prefix)
+        command1 = "raxml-ng --bootstrap --msa {phylip} --model {model} --prefix {outp} --seed 2 --bs-trees 1000 --threads {threads} > {outp}_stdout_raxml1.txt".format(model = model, phylip = phylip, threads = threads, outp = prefix)
         print('raxml command:', command1)
         p = subprocess.Popen(command1, shell = True)
         os.waitpid(p.pid, 0)
     return(output_filename)
 
 
-def run_fasttree(phylip, threads, recompute, cds = False):
+def run_fasttree(fasta, threads, recompute, cds = False):
     ''' Runs FastTree, phylip file, and number of threads provid.
     '''
     if not os.path.exists('fastree'):
         os.mkdir('fastree')
     output_dir = os.path.join(os.getcwd(), 'fastree')
-    name = re.sub('.phylip', '', os.path.basename(phylip))
-    output_filename = 'Fastree.' + name
+    name = re.sub("\.*$", '', (os.path.basename(fasta)))
+    output_filename = name
     output_filename = os.path.join(output_dir, output_filename)
     if not recompute and os.path.exists(output_filename):
         pass
     else:
         if cds == True:
-            command1 = "fasttree -gtr -nt < {phylip} > {output} ".format(phylip = phylip, output = output_filename)
+            command1 = "fasttree -gtr -nt < {phylip} > {output} ".format(phylip = fasta, output = output_filename)
         else:
-            command1 = "fasttree < {phylip} > {output} ".format(phylip = phylip, output = output_filename)
+            command1 = "fasttree < {phylip} > {output} ".format(phylip = fasta, output = output_filename)
         print('fastree command:', command1)
         p = subprocess.Popen(command1, shell = True)
         os.waitpid(p.pid, 0)
@@ -283,7 +301,7 @@ def run_fasttree(phylip, threads, recompute, cds = False):
 
 
 def rename_newick(id_map, nwk_in):
-    print(nwk_in)
+    #print(nwk_in)
     nwk_f = open(nwk_in, 'r')
     id_map_f = open(id_map, 'r')
     nwk = nwk_f.readlines()[0]
@@ -300,6 +318,59 @@ def rename_newick(id_map, nwk_in):
     nwk_out_h.close()
     return(nwk_out)
 
+
+
+
+def clean_fasta_codons(fasta, recompute):
+    stop_flag = False
+    fasta_clean = fasta + '.codons'
+    if recompute == True and os.path.exists(fasta_clean):
+        os.remove(fasta_clean)
+    if not os.path.exists(fasta_clean):
+        fa_in = pysam.FastxFile(fasta)
+        ## find stop codons in the last position
+        stop_indices = []
+        codon_3_flag = False
+        for record in fa_in:
+            if(len(record.sequence)%3 != 0):
+                codon_3_flag = True
+            codons = re.findall(r"(.{3})", str(record.sequence))
+            index = 0
+            for x in codons:
+                if x in stop_codons:
+                    if index not in stop_indices:
+                        stop_indices.append(index)
+                    index += 1
+                else:
+                    index += 1
+                    continue
+        fa_in = pysam.FastxFile(fasta)
+        if len(stop_indices) > 0 or codon_3_flag == True:
+            fa_out = open(fasta_clean, 'w')
+            for record in fa_in:
+                codons = re.findall(r"(.{3})", str(record.sequence))
+                index = 0
+                new_seq = ''
+                for x in codons:
+                    if index in stop_indices:
+                        index += 1
+                        continue
+                    else:
+                        index += 1
+                        new_seq += x
+                temp_seq = ">{}\n{}\n".format(record.name, new_seq)
+                fa_out.write(temp_seq)
+            fa_out.close()
+        else:
+            fasta_clean = fasta
+
+    return(fasta_clean)
+
+
+
+
+
+
 def clean_phylip_yn00(align_outfile_name, recompute):
     stop_flag = False
     phylip_yn00_filename = re.sub("afa", "phylip.yn00", align_outfile_name)
@@ -309,7 +380,10 @@ def clean_phylip_yn00(align_outfile_name, recompute):
         align           = AlignIO.read(align_outfile_name, "fasta")
         ## find stop codons in the last position
         stop_indices = []
+        codon_3_flag = False
         for record in align:
+            if(len(record.seq)%3 != 0):
+                codon_3_flag = True
             codons = re.findall(r"(.{3})", str(record.seq))
             index = 0
             for x in codons:
@@ -320,7 +394,7 @@ def clean_phylip_yn00(align_outfile_name, recompute):
                 else:
                     index += 1
                     continue
-        if len(stop_indices) > 0:
+        if len(stop_indices) > 0 or codon_3_flag == True:
             align1 = AlignIO.MultipleSeqAlignment([], Gapped(IUPAC.unambiguous_dna, "-"))
             for record in align:
                 codons = re.findall(r"(.{3})", str(record.seq))
@@ -341,9 +415,68 @@ def clean_phylip_yn00(align_outfile_name, recompute):
     return(phylip_yn00_filename)
         
 
-def clean_to_phylip(align_outfile_name, recompute):
+
+
+def clean_dialign_fa(fasta, recompute):
         ## convert to phylip and remove redundant  sequences
-    phylip_filename = re.sub("afa.trimmed", "phylip", align_outfile_name)
+    lower_nucs = ['a', 't', 'g', 'c']
+    out_filename = fasta + ".clean"
+    if recompute == True and os.path.exists(out_filename):
+        os.remove(out_filename)
+    if not os.path.exists(out_filename):
+        align           = AlignIO.read(fasta, "fasta")
+        align_columns   = []
+        rec_names = []
+        seq_index = 0
+        for record in align:
+            seq = str(record.seq)
+            rec_names.append(record.id)
+            index = 0
+            for i in seq:
+                if seq_index == 0:
+                    align_columns.append(i)
+                else:
+                    align_columns[index] += i
+                index += 1
+                
+            seq_index = 1
+
+        align_clean = []
+        seq_index = 0
+        for col in align_columns:
+            remove_col = False
+            for x in lower_nucs:
+                if x in col:
+                    remove_col = True
+                else:
+                    continue
+            if remove_col == False:
+                index = 0
+                for nuc in col:
+                    if seq_index == 0:
+                        align_clean.append(nuc)
+                    else:
+                        align_clean[index] += nuc
+                    index += 1
+            
+            else:
+                continue
+            seq_index = 1
+                    
+        align1 = AlignIO.MultipleSeqAlignment([], Gapped(IUPAC.unambiguous_dna, "-"))
+        for i, x in zip(align_clean, rec_names):
+            temp_seq = SeqRecord(Seq(i, generic_dna), id = x)
+            align1.append(temp_seq)
+        AlignIO.write(align1, out_filename, "fasta")
+        #record.seq = new_seq
+        #AlignIO.write(align, out_filename, "fasta")
+    return(out_filename)
+
+
+
+def clean_to_phylip(align_outfile_name, phylip_filename, recompute):
+        ## convert to phylip and remove redundant  sequences
+   
     redundant_seqs_file = 'redundant_sequences.txt'
     if recompute == True and os.path.exists(phylip_filename):
         os.remove(phylip_filename)
@@ -367,8 +500,6 @@ def clean_to_phylip(align_outfile_name, recompute):
                     line_out = "{} {}".format(uniq_seqs[seq], sid)
                     red_seq.write(line_out)
                     continue
-                    #add_record = "_" + sid + ' '
-                    #uniq_seqs[seq] += add_record
             red_seq.close()
             align1 = AlignIO.MultipleSeqAlignment([], Gapped(IUPAC.unambiguous_dna, "-"))
             for x in uniq_seqs:
@@ -379,15 +510,20 @@ def clean_to_phylip(align_outfile_name, recompute):
             print(align_outfile_name, 'too short to continue after trimming')
     return(phylip_filename)
 
-def main_cds_tree(fasta, threads, recompute, id_map_filename = False, mafft = False):
+def main_cds_tree(fasta, threads, recompute, id_map_filename = False, mafft = False, dialign = False):
     if mafft == True:
         align_outfile_name = run_mafft(fasta = fasta, threads = threads, recompute = recompute)
-    else:
+    elif dialign == True:
         fasta                = check_nucleotides_dialign(fasta)
-        align_outfile_name = run_dialign(fasta = fasta, recompute = recompute)
+        align_outfile_name   = run_dialign(fasta = fasta, recompute = recompute)
+        align_outfile_name   = clean_dialign_fa(fasta = align_outfile_name, recompute = recompute)
+    else:
+            fasta              = clean_fasta_codons(fasta = fasta, recompute = recompute)
+            align_outfile_name = run_prank(fasta = fasta, recompute = recompute)
         
     align_outfile_name   = run_trimal(afa = align_outfile_name, recompute = recompute)
-    phylip_filename      = clean_to_phylip(align_outfile_name = align_outfile_name, recompute = recompute)
+    phylip_filename      = re.sub("afa.clean.trimmed", "phylip", align_outfile_name)
+    phylip_filename      = clean_to_phylip(align_outfile_name = align_outfile_name, phylip_filename = phylip_filename, recompute = recompute)
             
     if '-yn' in sys.argv:
         phylip_yn00_filename = clean_phylip_yn00(align_outfile_name = align_outfile_name, recompute = recompute)
@@ -397,7 +533,7 @@ def main_cds_tree(fasta, threads, recompute, id_map_filename = False, mafft = Fa
         
     ## align the phylip file
     if '-fasttree' in sys.argv:
-        tree_filename = run_fasttree(phylip = phylip_filename, threads = threads, recompute = recompute, cds = True)
+        tree_filename = run_fasttree(fasta = align_outfile_name, threads = threads, recompute = recompute, cds = True)
     else:
         ## run modeltest to get the model
         output_file = 'modeltest/' + os.path.basename(align_outfile_name) + ".COMPLETE"
@@ -405,7 +541,7 @@ def main_cds_tree(fasta, threads, recompute, id_map_filename = False, mafft = Fa
             with open(output_file, 'r') as f:
                 model = parse_model_test(in_file = output_file)
         else:
-            print('Starting modeltest on', output_file)
+            #print('Starting modeltest on', output_file)
             run_modeltest(in_file= align_outfile_name,
                                             recompute = recompute,
                                             output_file = output_file,
@@ -424,7 +560,7 @@ def main_protein_tree(fasta, threads, recompute):
     mafft_outfile_name = run_mafft(fasta = fasta, threads = threads, recompute = recompute)
     align_outfile_name = run_trimal(afa = mafft_outfile_name, recompute = recompute)
     phylip_filename    = clean_to_phylip(align_outfile_name = align_outfile_name, recompute = recompute)
-    print(phylip_filename)
+    #print(phylip_filename)
     if '-a' in sys.argv:
         sys.exit()
         
@@ -473,6 +609,7 @@ def main(argv):
         <-p>            stop after prottest or jmodeltest
         <-fasttree>     use fasttree instead of raxml
         <-mafft>        align cds with mafft
+        <-dialign>      align cds with dialign
         <-cds>          input type is cds (protein by default)
         <-yn>           run yn00 to get dn/ds for cds sequences\n''' % os.path.basename(sys.argv[0]))
         sys.exit(1)
@@ -486,7 +623,10 @@ def main(argv):
         mafft = True
     else:
         mafft = False
-        
+    if '-dialign' in sys.argv:
+        dialign = True
+    else:
+        dialign = False
     ## first check the fasta file for names lengths
     fa_header_flag = check_fasta_headers(fasta)
     ## if the headers are too long, make new files with shorter headers
@@ -504,7 +644,7 @@ def main(argv):
 
     ## implement different subroutines for cds/protein sequences
     if '-cds' in sys.argv:    
-        tree_filename = main_cds_tree(fasta = fasta, threads = threads, recompute = recompute, id_map_filename = id_map_filename, mafft = mafft)
+        tree_filename = main_cds_tree(fasta = fasta, threads = threads, recompute = recompute, id_map_filename = id_map_filename, mafft = mafft, dialign = dialign)
     else:
         tree_filename = main_protein_tree(fasta = fasta, threads = threads, recompute = recompute)
         
@@ -516,7 +656,7 @@ def main(argv):
     else:
         nwk_out = os.path.join('final_trees', os.path.basename(tree_filename))
         shutil.copyfile(tree_filename, nwk_out)
-    print('Final tree:', nwk_out)
+    #print('Final tree:', nwk_out)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
