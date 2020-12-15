@@ -124,7 +124,7 @@ def run_mafft(fasta, threads, recompute):
     if not recompute and os.path.exists(output_file):
         pass
     else:
-        command = ' '.join(['mafft', '--thread', threads, '--auto', fasta, ">", output_file])
+        command = ' '.join(['/usr/bin/mafft', '--thread', threads, '--auto', fasta, ">", output_file])
         print('Running:', command)
         p = subprocess.Popen(command, shell=True)
         pid = os.waitpid(p.pid, 0)
@@ -187,7 +187,10 @@ def run_trimal(afa, recompute):
     if not recompute and os.path.exists(output_file):
         pass
     else:
-        command = "trimal -in {} -out {} -automated1".format(afa, output_file)
+        if '-nogap' in sys.argv:
+            command = "trimal -nogaps -in {} -out {} -automated1".format(afa, output_file)
+        else:    
+            command = "trimal -in {} -out {} -automated1".format(afa, output_file)
         print('Running:', command)
         p = subprocess.Popen(command, shell=True)
         pid = os.waitpid(p.pid, 0)
@@ -472,6 +475,7 @@ def main(argv):
         <-fasttree>     use fasttree instead of raxml
         <-mafft>        align cds with mafft
         <-cds>          input type is cds (protein by default)
+        <-nogap>        remove all gaps from the alignment
         <-yn>           run yn00 to get dn/ds for cds sequences\n''' % os.path.basename(sys.argv[0]))
         sys.exit(1)
     fasta   = sys.argv[1]

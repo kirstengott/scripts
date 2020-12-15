@@ -181,7 +181,7 @@ def busco_4_0(b_out_files, input_dir, busco_out_dir, seq_type = 'fna'):
             else:
                 command = "cat {} | sed -e 's/>.*$/>{}/' >>{}".format(seq_file, genome, outfile)
                 os.system(command)
-j            
+
 
 def busco_all(b_out_files, input_dir, busco_out_dir, seq_type = 'fna'):
     ''' 

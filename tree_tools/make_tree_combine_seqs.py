@@ -83,7 +83,10 @@ def main(argv):
 
     fasta_dir       = sys.argv[1]
     threads         = sys.argv[2]
-    id_maps         = sys.argv[3]
+    if len(argv) == 3:
+        id_maps         = sys.argv[3]
+    else:
+        id_maps = False
     
     fastas    = [x for x in os.listdir(fasta_dir) if 'afa.trimmed' in x]
 
@@ -94,29 +97,48 @@ def main(argv):
 
     sp_name = set()
     gene_lens = {}
-    
-    for fasta in fastas:
-        gene_name_f = os.path.join(id_maps, re.sub('.afa.trimmed', '', fasta) + "_id_map.txt")
-        gene_name_dict = {}
-        with open(gene_name_f, 'r') as fh:
-            for line in fh:
-                line = line.strip().split()
-                gene_name_dict[line[0]] = line[1]
-        fasta = os.path.join(fasta_dir, fasta)
-        fa = pysam.FastxFile(fasta)
 
-        num_seq = 0
-        for x in fa:
-            num_seq += 1
-            name = gene_name_dict[x.name]
-            sp_name.add(name)
-            if fasta not in seqs_all:
-                seqs_all[fasta] = {}
-                
-            if name not in seqs_all[fasta]:
-                seqs_all[fasta][name] = x.sequence
-                
-        fa.close()
+    if id_maps:
+        for fasta in fastas:
+            gene_name_f = os.path.join(id_maps, re.sub('.afa.trimmed', '', fasta) + "_id_map.txt")
+            gene_name_dict = {}
+            with open(gene_name_f, 'r') as fh:
+                for line in fh:
+                    line = line.strip().split()
+                    gene_name_dict[line[0]] = line[1]
+            fasta = os.path.join(fasta_dir, fasta)
+            fa = pysam.FastxFile(fasta)
+
+            num_seq = 0
+            for x in fa:
+                num_seq += 1
+                name = gene_name_dict[x.name]
+                sp_name.add(name)
+                if fasta not in seqs_all:
+                    seqs_all[fasta] = {}
+
+                if name not in seqs_all[fasta]:
+                    seqs_all[fasta][name] = x.sequence
+
+            fa.close()
+    else:
+        for fasta in fastas:
+            fasta = os.path.join(fasta_dir, fasta)
+            fa = pysam.FastxFile(fasta)
+            num_seq = 0
+            for x in fa:
+                num_seq += 1
+                name = x.name
+                sp_name.add(name)
+                if fasta not in seqs_all:
+                    seqs_all[fasta] = {}
+
+                if name not in seqs_all[fasta]:
+                    seqs_all[fasta][name] = x.sequence
+
+            fa.close()
+
+        
         
     for i in seqs_all:
         coord_flag = 0
