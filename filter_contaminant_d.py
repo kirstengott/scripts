@@ -80,6 +80,8 @@ with open(file_in, 'r') as fh:
 
 fh = pysam.FastxFile(fasta)
 
+out_seqs = set()
+
 for entry in fh:
     if entry.name in c_dict:
         new_seqs = []
@@ -104,7 +106,7 @@ for entry in fh:
             if len(i) >= 200:
                 new_name = re.sub("_length_.*$", '', entry.name) + '_length_' + str(len(i)) + '_trimmed'
                 out_seq = '>{0}\n{1}\n'.format(new_name +"_" + str(count), i)
-                print(out_seq)
+                out_seqs.add(out_seq)
             else:
                 continue
             count += 1
@@ -113,10 +115,11 @@ for entry in fh:
         continue
     else:
         out_seq = '>{0}\n{1}\n'.format(entry.name, entry.sequence)
-        print(out_seq)
+        out_seqs.add(out_seq)
         continue
         
 
 
     
-
+for i in out_seqs:
+    print(i)
