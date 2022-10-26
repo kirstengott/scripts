@@ -1,17 +1,15 @@
-#!/usr/bin/env python
-
 import pysam
 import sys
 import os
 
 ## pull in arguments
 file_in = sys.argv[1]
-out_dir = os.path.dirname(file_in)
+prefix = sys.argv[2]
 
 ## define output files
-out_f_mated   = out_dir + "/allpaired.bam"
+out_f_mated   = prefix + "allpaired.bam"
 #out_f_mated2   = out_dir + "/allpaired_R2.fastq.gz"
-out_f_unmated  = out_dir + "/allunmated.bam"
+out_f_unmated  = prefix + "allunmated.bam"
 
 ## open input file
 samfile             = pysam.AlignmentFile(file_in, "rb")

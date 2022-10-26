@@ -18,11 +18,11 @@ def run_busco(fasta, threads, run_type, lineage):
         out, ext = os.path.splitext(out)
         
     if run_type == 'prot':
-        command = "docker run -u $(id -u) -v $(pwd):/busco_wd ezlabgva/busco:v4.1.1_cv1 busco -c {} -i {} -o {} -m prot -l {}".format(threads, fasta, out, lineage)
+        command = "docker run -u $(id -u) -v $(pwd):/busco_wd ezlabgva/busco:v5.4.3_cv1 busco -c {} -i {} -o {} -m prot -l {}".format(threads, fasta, out, lineage)
     elif run_type == 'tran':
-        command = "docker run -u $(id -u) -v $(pwd):/busco_wd ezlabgva/busco:v4.1.1_cv1 busco -c {} -i {} -o {} -m tran -l {}".format(threads, fasta, out, lineage)
+        command = "docker run -u $(id -u) -v $(pwd):/busco_wd ezlabgva/busco:v5.4.3_cv1 busco -c {} -i {} -o {} -m tran -l {}".format(threads, fasta, out, lineage)
     elif run_type == 'geno':
-        command = "docker run -u $(id -u) -v $(pwd):/busco_wd ezlabgva/busco:v4.1.1_cv1 busco -c {} -i {} -o {} -m geno -l {}".format(threads, fasta, out, lineage)
+        command = "docker run -u $(id -u) -v $(pwd):/busco_wd ezlabgva/busco:v5.4.3_cv1 busco -c {} -i {} -o {} -m geno -l {}".format(threads, fasta, out, lineage)
     else:
         print("BUSCO run type not provided, exiting")
         sys.exit(1)

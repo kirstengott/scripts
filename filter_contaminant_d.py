@@ -77,7 +77,6 @@ with open(file_in, 'r') as fh:
 
 
 
-
 fh = pysam.FastxFile(fasta)
 
 out_seqs = set()
@@ -87,13 +86,19 @@ for entry in fh:
         new_seqs = []
         ranges = c_dict[entry.name]
         if len(ranges) > 1:
+            count_range = 0
             for x in ranges:
                 start = int(x[0])
                 stop = int(x[1])
-                new_seq_1 = entry.sequence[:start]  
-                new_seqs.append(new_seq_1)
-                new_seq_2 = entry.sequence[stop+1:]
-                new_seqs.append(new_seq_2)
+                if count_range == 0:
+                    new_seq_1 = entry.sequence[:start]  
+                    new_seqs.append(new_seq_1)
+                    start_next = stop
+                else:
+                    ## add logic to only add to break scaff at next start
+                    new_seq_1 = entry.sequence[start_next+1:start]
+                    new_seqs.append(new_seq_1)
+                    start_next = stop
         else:
             start = int(ranges[0][0])
             stop = int(ranges[0][1])
