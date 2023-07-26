@@ -73,7 +73,8 @@ def run_modeltest(in_file, output_file, threads, seq_type, recompute = False):
     else:
         if not os.path.exists('modeltest'):
             os.mkdir('modeltest')
-        command = "modeltest-ng -i {input_f} -d {stype} -o {out} -p {threads} -T raxml".format(input_f = in_file, threads = threads, out = output_file, stype = seq_type)
+        command = "modeltest-ng -i {input_f} -d {stype} -o {out} -p {threads} -T raxml".format(input_f = in_file, threads = threads,
+                                                                                               out = output_file, stype = seq_type)
         print('Running:', command, "to make", output_file)
         os.system(command)
 
